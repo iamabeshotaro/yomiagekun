@@ -139,6 +139,7 @@ def create_and_play_audio(q_no, problems, voice_id, playback_rate):
     temp_file = f"temp_audio_{int(time.time())}.mp3"
     
     try:
+        # 非同期処理でEdge-TTSを実行
         asyncio.run(generate_edge_audio(full_text, voice_id, temp_file))
         
         with open(temp_file, "rb") as f:
@@ -173,7 +174,7 @@ def create_and_play_audio(q_no, problems, voice_id, playback_rate):
         st.session_state['correct_ans'] = sum(problems[q_no])
         st.session_state['audio_html'] = audio_html_content
         st.session_state['current_q'] = q_no
-        st.session_state['last_voice_id'] = voice_id # 現在の声を記録
+        st.session_state['last_voice_id'] = voice_id
         
     except Exception as e:
         st.error(f"音声生成エラー: {e}")
@@ -236,9 +237,11 @@ else:
         col1, col2 = st.columns([1, 1], gap="medium")
         with col1:
             st.markdown("##### 🚀 スピード")
-            speed_level = st.slider("Level (1-10)", 1, 10, 5, label_visibility="collapsed")
+            # --- 修正箇所: 1〜15段階に変更 ---
+            speed_level = st.slider("Level (1-15)", 1, 15, 5, label_visibility="collapsed")
             playback_rate = 0.5 + (speed_level * 0.1)
             st.caption(f"再生倍率: **{playback_rate:.1f}x**")
+            
         with col2:
             st.markdown("##### 📝 問題番号")
             q_no = st.number_input(
@@ -256,17 +259,23 @@ else:
              st.session_state['correct_ans'] = None
              st.session_state['audio_html'] = None
              st.session_state['current_q'] = q_no
-             st.session_state['last_voice_id'] = None # 音声も未生成状態へ
+             st.session_state['last_voice_id'] = None
 
-        # --- 自動更新ロジック (ここが新機能) ---
-        # 「問題が変わっていない」かつ「音声は生成済み」かつ「声の設定が変わった」場合
+        # --- 自動更新ロジック ---
+        # 声が変わったら自動再生
         if (st.session_state['current_q'] == q_no and 
             st.session_state['audio_html'] is not None and 
             st.session_state['last_voice_id'] != selected_voice_id):
             
-            # 自動で再生成してリロード
             create_and_play_audio(q_no, problems, selected_voice_id, playback_rate)
             st.rerun()
+            
+        # スピードが変わった場合も、自動でプレイヤーの速度を更新したいが、
+        # Python側でrerunすると音声が最初からになるため、
+        # ここでは「次に再生ボタンを押した時」または「HTMLが再描画された時」に反映されます。
+        # ※HTML内のJavaScriptが playback_rate を受け取っているので、
+        # 　一度再生された後にスライダーを動かしてもリアルタイムには変わりませんが、
+        # 　「再生スタート」を押せば新しい速度になります。
 
         st.markdown("<br><br>", unsafe_allow_html=True) 
 
@@ -306,3 +315,4 @@ else:
                                 st.error(f"**Dommage... (残念...)**\n\n正解は **{correct:,}** でした。")
                         except ValueError:
                             st.warning("数字を入力してください。")
+
