@@ -118,54 +118,78 @@ def load_problems_from_csv(file_name):
     except:
         return {}
 
-def generate_random_problems(count, min_digit, max_digit, rows, allow_subtraction):
+def get_next_digits_from_deck(rows, min_digit, max_digit):
     """
-    ランダムに問題を生成する
-    - 指定範囲の桁数を一巡するまで重複させない（偏り防止）
-    - 最小桁と最大桁を必ず1回は含める（難易度保証）
+    セッションステートのデッキから次の桁数リストを取得する
+    - 一巡ルール（偏り防止）
+    - 最大・最小桁の保証
     """
-    problems = {}
-    digit_range = list(range(min_digit, max_digit + 1))
+    # デッキの初期化チェック
+    if 'digit_deck' not in st.session_state:
+        st.session_state['digit_deck'] = []
     
-    for q in range(1, count + 1):
-        # 1. 一巡ルールで桁数リストを作成
-        current_digits = []
-        while len(current_digits) < rows:
-            deck = digit_range[:]
-            random.shuffle(deck)
-            needed = rows - len(current_digits)
-            current_digits.extend(deck[:needed])
+    # 設定が変わっていたらデッキをリセットする安全策
+    # (デッキ内に範囲外の数字が含まれていたらクリア)
+    deck = st.session_state['digit_deck']
+    if deck and (min(deck) < min_digit or max(deck) > max_digit):
+        deck = []
+
+    # 必要な枚数が足りなければ補充
+    current_digits = []
+    needed = rows
+    
+    # 範囲リスト
+    digit_range = list(range(min_digit, max_digit + 1))
+
+    while len(current_digits) < needed:
+        if not deck:
+            # デッキが空なら新しいセットを補充してシャッフル
+            new_set = digit_range[:]
+            random.shuffle(new_set)
+            deck.extend(new_set)
         
-        # 2. 最大・最小保証チェック
-        # シャッフル後に最小桁が含まれていなければ、最大桁以外の場所を強制的に書き換え
-        if min_digit not in current_digits:
-            replaceable_indices = [i for i, d in enumerate(current_digits) if d != max_digit]
-            if not replaceable_indices: replaceable_indices = [0]
-            target_idx = random.choice(replaceable_indices)
-            current_digits[target_idx] = min_digit
+        # デッキから取り出す
+        card = deck.pop(0)
+        current_digits.append(card)
+    
+    # 残ったデッキを保存
+    st.session_state['digit_deck'] = deck
 
-        # 最大桁が含まれていなければ、最小桁以外の場所を強制的に書き換え
-        if max_digit not in current_digits:
-            replaceable_indices = [i for i, d in enumerate(current_digits) if d != min_digit]
-            if not replaceable_indices: replaceable_indices = [0]
-            target_idx = random.choice(replaceable_indices)
-            current_digits[target_idx] = max_digit
+    # --- 最大・最小保証チェック ---
+    # 今回選ばれた桁数の中に最小値が含まれているか？
+    if min_digit not in current_digits:
+        replaceable_indices = [i for i, d in enumerate(current_digits) if d != max_digit]
+        if not replaceable_indices: replaceable_indices = [0]
+        target_idx = random.choice(replaceable_indices)
+        current_digits[target_idx] = min_digit
 
-        # 3. 数値の生成
-        nums = []
-        for r, d in enumerate(current_digits):
-            lower = 10**(d-1)
-            upper = 10**d - 1
-            val = random.randint(lower, upper)
-            
-            # 符号の決定（1行目は正数、2行目以降は設定次第）
-            if r > 0 and allow_subtraction:
-                if random.choice([True, False]):
-                    val = -val
-            nums.append(val)
-            
-        problems[q] = nums
-    return problems
+    # 最大値が含まれているか？
+    if max_digit not in current_digits:
+        replaceable_indices = [i for i, d in enumerate(current_digits) if d != min_digit]
+        if not replaceable_indices: replaceable_indices = [0]
+        target_idx = random.choice(replaceable_indices)
+        current_digits[target_idx] = max_digit
+
+    return current_digits
+
+def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
+    """1問分のデータを生成する"""
+    # デッキから桁数を決定
+    digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
+    
+    nums = []
+    for r, d in enumerate(digits_list):
+        lower = 10**(d-1)
+        upper = 10**d - 1
+        val = random.randint(lower, upper)
+        
+        # 符号の決定（1行目は正数、2行目以降は設定次第）
+        if r > 0 and allow_subtraction:
+            if random.choice([True, False]):
+                val = -val
+        nums.append(val)
+        
+    return nums
 
 def get_digit_info(numbers):
     """数字リストから桁数の範囲（最小〜最大）を文字列で返す"""
@@ -188,7 +212,6 @@ def generate_audio_text(row_data):
     speech_parts = []
     last_op = None 
     for i, num in enumerate(row_data):
-        # カンマとandを除去して自然な読み上げに
         text_num = num2words(abs(num), lang='en').replace(" and ", " ").replace(",", "")
         text_with_unit = f"{text_num} dollars"
         
@@ -197,7 +220,6 @@ def generate_audio_text(row_data):
             last_op = "Add"
         else:
             current_op = "Add" if num >= 0 else "Subtract"
-            # 演算子が変わった時だけ言う（スマート読み上げ）
             if current_op != last_op:
                 speech_parts.append(f"{current_op}, {text_with_unit},")
                 last_op = current_op
@@ -213,7 +235,7 @@ async def generate_edge_audio(text, voice, output_file):
     await communicate.save(output_file)
 
 def create_and_play_audio(q_no, problems, voice_id, playback_rate):
-    """音声生成のメイン処理。ファイルを生成し、HTMLプレイヤーを作成してセッションに保存する"""
+    """音声生成のメイン処理"""
     if q_no not in problems:
         return
     
@@ -221,7 +243,6 @@ def create_and_play_audio(q_no, problems, voice_id, playback_rate):
     temp_file = f"temp_audio_{int(time.time())}.mp3"
     
     try:
-        # 非同期関数を実行
         asyncio.run(generate_edge_audio(full_text, voice_id, temp_file))
         
         with open(temp_file, "rb") as f:
@@ -231,7 +252,6 @@ def create_and_play_audio(q_no, problems, voice_id, playback_rate):
         audio_b64 = base64.b64encode(audio_bytes).decode()
         player_id = f"audio_player_{int(time.time())}"
         
-        # HTML5 Audioプレイヤーの埋め込み
         audio_html_content = f"""
             <audio id="{player_id}" controls autoplay style="width: 100%; margin-top: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-radius: 30px;">
                 <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
@@ -252,7 +272,6 @@ def create_and_play_audio(q_no, problems, voice_id, playback_rate):
             </script>
         """
         
-        # セッション情報の更新
         st.session_state['correct_ans'] = sum(problems[q_no])
         st.session_state['audio_html'] = audio_html_content
         st.session_state['current_q'] = q_no
@@ -279,17 +298,19 @@ if 'last_voice_id' not in st.session_state:
     st.session_state['last_voice_id'] = None
 if 'generated_problems' not in st.session_state:
     st.session_state['generated_problems'] = {}
+if 'digit_deck' not in st.session_state:
+    st.session_state['digit_deck'] = []
 
 # --- サイドバー設定 ---
 with st.sidebar:
     st.header("Settings")
     
-    # モード選択（タブ切り替え風）
     mode = st.radio("📁 モード選択", ["CSV読み込み", "ランダム生成"])
     st.divider()
 
     problems = {}
     selected_file_label = ""
+    is_random_mode = (mode == "ランダム生成")
 
     if mode == "CSV読み込み":
         file_counts = get_problem_counts()
@@ -317,27 +338,9 @@ with st.sidebar:
         rows_count = st.slider("口数 (行数)", 3, 15, 5)
         allow_sub = st.checkbox("引き算を含める (加減算)", value=False)
         
-        if st.button("問題を生成 (10問)", type="primary", use_container_width=True):
-            with st.spinner("問題を生成中..."):
-                st.session_state['generated_problems'] = generate_random_problems(
-                    count=10, 
-                    min_digit=min_d, 
-                    max_digit=max_d, 
-                    rows=rows_count, 
-                    allow_subtraction=allow_sub
-                )
-                # 生成したらリセット
-                st.session_state['current_q'] = None
-                st.session_state['audio_html'] = None
-                st.session_state['correct_ans'] = None
-                st.session_state['last_voice_id'] = None
-        
-        # セッションから問題を取得
+        # セッションから過去に生成した問題を取得
         problems = st.session_state['generated_problems']
-        selected_file_label = "ランダム生成問題"
-        
-        if not problems:
-            st.info("上のボタンを押して問題を生成してください。")
+        selected_file_label = "ランダム生成"
 
     st.divider()
     st.subheader("🗣️ Voice / Accent")
@@ -345,42 +348,59 @@ with st.sidebar:
     selected_voice_id = VOICE_MAP[selected_voice_label]
 
 # --- メインエリア ---
-if not problems:
-    if mode == "CSV読み込み" and not file_counts:
-        pass # エラー表示済み
-    elif mode == "CSV読み込み":
-        st.error("データの読み込みに失敗しました。")
-    # ランダムモードで生成前は静かに待機
+
+# ランダムモードでまだ問題がない場合
+if is_random_mode and not problems:
+    st.info("設定を決めて、下のボタンからスタートしてください！")
+    if st.button("🚀 スタート (最初の問題を生成)", type="primary", use_container_width=True):
+        new_q_no = 1
+        new_problem = generate_single_problem(min_d, max_d, rows_count, allow_sub)
+        
+        # 辞書に追加
+        st.session_state['generated_problems'][new_q_no] = new_problem
+        
+        # 再生準備
+        problems = st.session_state['generated_problems']
+        create_and_play_audio(new_q_no, problems, selected_voice_id, 1.0) # 初回は等倍速で
+        st.rerun()
+
+elif not problems and mode == "CSV読み込み":
+    st.error("データの読み込みに失敗しました。")
+    
 else:
+    # 既存の問題がある、またはCSVモードの場合
     min_no = min(problems.keys())
     max_no = max(problems.keys())
     
-    # 情報表示エリア
     if mode == "CSV読み込み":
-        st.info(f"📂 **{selected_file_label}** を読み込みました。（収録範囲: No.{min_no} 〜 No.{max_no}）")
+        st.info(f"📂 **{selected_file_label}** を読み込みました。（No.{min_no} 〜 No.{max_no}）")
     else:
-        st.success(f"🎲 **ランダム問題** を生成しました。（全{len(problems)}問）")
+        st.success(f"🎲 **ランダムモード** 実施中（現在: {max_no}問目）")
         
     st.markdown("---")
 
     col1, col2 = st.columns([1, 1], gap="medium")
     with col1:
         st.markdown("##### 🚀 スピード")
-        # 1〜15段階のスライダー (0.6倍〜2.0倍)
         speed_level = st.slider("Level (1-15)", 1, 15, 5, label_visibility="collapsed")
         playback_rate = 0.5 + (speed_level * 0.1)
         st.caption(f"再生倍率: **{playback_rate:.1f}x**")
         
     with col2:
         st.markdown("##### 📝 問題番号")
-        q_no = st.number_input("No.", min_value=min_no, max_value=max_no, value=min_no, label_visibility="collapsed")
+        # ランダムモード時は、基本は最新の問題を表示するが、戻ることも可能にする
+        default_val = st.session_state['current_q'] if st.session_state['current_q'] else min_no
+        # 範囲外チェック
+        if default_val not in problems:
+            default_val = max_no
+
+        q_no = st.number_input("No.", min_value=min_no, max_value=max_no, value=default_val, label_visibility="collapsed")
         
-        # バッジ表示（桁数＆加算/加減算）
+        # バッジ表示
         if q_no in problems:
             digit_info = get_digit_info(problems[q_no])
             prob_type = get_problem_type(problems[q_no])
             
-            # 色分けスタイル
             type_color = "#e3f2fd" if prob_type == "加算" else "#fff3e0"
             type_text_color = "#1565c0" if prob_type == "加算" else "#ef6c00"
             type_border = "#bbdefb" if prob_type == "加算" else "#ffe0b2"
@@ -397,29 +417,50 @@ else:
             """
             st.markdown(badge_html, unsafe_allow_html=True)
 
-    # 問題番号が変わった場合の状態リセット
+    # 問題番号が変わった場合のリセット
     if st.session_state['current_q'] != q_no:
             st.session_state['correct_ans'] = None
             st.session_state['audio_html'] = None
             st.session_state['current_q'] = q_no
             st.session_state['last_voice_id'] = None
 
-    # 音声自動更新ロジック (同じ問題で声の設定だけ変えた場合)
+    # 音声自動更新
     if (st.session_state['current_q'] == q_no and 
         st.session_state['audio_html'] is not None and 
         st.session_state['last_voice_id'] != selected_voice_id):
         create_and_play_audio(q_no, problems, selected_voice_id, playback_rate)
         st.rerun()
 
-    st.markdown("<br><br>", unsafe_allow_html=True) 
+    st.markdown("<br>", unsafe_allow_html=True) 
 
-    # 再生ボタン
-    if st.button("▶️ 再生スタート (Play)", type="primary", use_container_width=True):
-        if q_no in problems:
-            create_and_play_audio(q_no, problems, selected_voice_id, playback_rate)
-            st.rerun()
+    # --- ボタンエリア ---
+    # ランダムモードなら「次へ（生成）」ボタンを表示
+    if is_random_mode:
+        # 最新の問題にいるときだけ「次へ」を出す（過去問閲覧中は出さない）
+        if q_no == max_no:
+            if st.button("🆕 次の問題を作成して進む (Next)", type="primary", use_container_width=True):
+                new_q_no = max_no + 1
+                new_problem = generate_single_problem(min_d, max_d, rows_count, allow_sub)
+                st.session_state['generated_problems'][new_q_no] = new_problem
+                
+                # 自動再生
+                create_and_play_audio(new_q_no, st.session_state['generated_problems'], selected_voice_id, playback_rate)
+                st.rerun()
+        else:
+            # 過去問を見ているときは元の再生ボタン
+            if st.button("▶️ 再生スタート (Play)", use_container_width=True):
+                create_and_play_audio(q_no, problems, selected_voice_id, playback_rate)
+                st.rerun()
 
-    # オーディオプレイヤー表示
+    else:
+        # CSVモードは通常の再生ボタン
+        if st.button("▶️ 再生スタート (Play)", type="primary", use_container_width=True):
+            if q_no in problems:
+                create_and_play_audio(q_no, problems, selected_voice_id, playback_rate)
+                st.rerun()
+
+    # オーディオプレイヤー
+    st.markdown("<br>", unsafe_allow_html=True) 
     if st.session_state['audio_html']:
             st.markdown("### 🎧 Listening...")
             st.components.v1.html(st.session_state['audio_html'], height=70)
