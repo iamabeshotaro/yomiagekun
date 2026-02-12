@@ -1,3 +1,0 @@
-streamlit
-gTTS
-num2words
