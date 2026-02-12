@@ -146,7 +146,7 @@ st.markdown(f"##### {APP_NAME_JP}")
 for key in ['correct_ans', 'current_q', 'audio_html', 'last_voice_id', 'generated_problems', 'digit_deck']:
     if key not in st.session_state: st.session_state[key] = None if 'ans' in key or 'html' in key or 'voice' in key or 'q' in key else [] if 'deck' in key else {}
 
-# --- 【追加機能1】使いかたガイド ---
+# ガイド
 with st.expander("📖 はじめての方へ（使いかた）", expanded=True):
     st.markdown("""
     1.  **設定を確認する**: 左側のメニューで、**『モード』**と**『声』**を選びます。
@@ -155,10 +155,10 @@ with st.expander("📖 はじめての方へ（使いかた）", expanded=True):
     4.  **答え合わせ**: 最後に答えを半角数字で入力し、**『答え合わせ』**を押してください。
     """)
 
-# ファイル情報の取得
+# ファイル情報
 file_counts = get_problem_counts()
 
-# サイドバー設定
+# サイドバー
 with st.sidebar:
     st.header("⚙️ 設定 (Settings)")
     mode = st.radio("📁 モード選択", ["CSV読み込み", "ランダム生成"])
@@ -178,7 +178,7 @@ with st.sidebar:
     selected_voice_label = st.selectbox("話者の声を選択", options=list(VOICE_MAP.keys()))
     selected_voice_id = VOICE_MAP[selected_voice_label]
 
-# メインエリアの表示
+# メイン処理
 if is_random_mode := (mode == "ランダム生成"):
     if not problems:
         if st.button("🚀 練習をスタートする", type="primary", use_container_width=True):
@@ -196,7 +196,14 @@ if problems:
         speed_level = st.slider("🚀 スピード (1-15)", 1, 15, 5)
         playback_rate = 0.5 + (speed_level * 0.1)
     with c2:
-        q_no = st.number_input("📝 問題番号", min_value=min_no, max_value=max_no, value=st.session_state['current_q'] or min_no)
+        # --- 修正箇所: エラー回避の安全装置 ---
+        # セッションの値をチェックして、範囲外なら強制的に範囲内に収める
+        default_val = st.session_state['current_q'] or min_no
+        if default_val < min_no: default_val = min_no
+        if default_val > max_no: default_val = max_no
+        
+        q_no = st.number_input("📝 問題番号", min_value=min_no, max_value=max_no, value=default_val)
+        
         if q_no in problems:
             d_info = [len(str(abs(n))) for n in problems[q_no]]
             p_type = any(n < 0 for n in problems[q_no])
@@ -222,12 +229,9 @@ if problems:
         st.markdown("### 🎧 Listening...")
         st.components.v1.html(st.session_state['audio_html'], height=80)
 
-    # --- 【追加機能2】問題の数字を確認する ---
     if q_no in problems:
-        # 普段は閉じている(expanded=False)
         with st.expander("👀 問題の数字を確認する (Show Numbers)"):
             current_nums = problems[q_no]
-            # 見やすいように右寄せのリスト形式で表示
             html_nums = "".join([f"<div style='text-align: right; font-family: monospace; font-size: 1.2em; border-bottom: 1px solid #eee;'>{n:,}</div>" for n in current_nums])
             st.markdown(html_nums, unsafe_allow_html=True)
             st.markdown(f"<div style='text-align: right; font-weight: bold; font-size: 1.2em; margin-top: 5px;'>Total: {sum(current_nums):,}</div>", unsafe_allow_html=True)
