@@ -116,13 +116,41 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
         nums.append(val); current_total += val
     return nums
 
+# --- 修正: 読み上げテキスト生成ロジック（省略機能の復活） ---
+def generate_audio_text(row_data):
+    speech_parts = []
+    last_op = None 
+    for i, num in enumerate(row_data):
+        # 桁区切りのカンマなどを除去して読みやすく
+        text_num = num2words(abs(num), lang='en').replace(" and ", " ").replace(",", "")
+        text_with_unit = f"{text_num} dollars"
+        
+        if i == 0:
+            speech_parts.append(f"starting with, {text_with_unit},")
+            last_op = "Add" # 最初は必ずプラス扱い
+        else:
+            current_op = "Add" if num >= 0 else "Subtract"
+            # 前回の符号と違う場合のみ、Add/Subtract を言う
+            if current_op != last_op:
+                speech_parts.append(f"{current_op}, {text_with_unit},")
+                last_op = current_op
+            else:
+                # 同じ場合は数字だけ
+                speech_parts.append(f"{text_with_unit},")
+            
+    speech_parts.append("thats all")
+    return " ".join(speech_parts)
+
 async def generate_edge_audio(text, voice, output_file):
     communicate = edge_tts.Communicate(text, voice)
     await communicate.save(output_file)
 
 def create_and_play_audio(q_no, problems, voice_id, playback_rate):
     if q_no not in problems: return
-    full_text = " ".join([f"starting with, {num2words(abs(n), lang='en').replace(' and ', ' ').replace(',', '')} dollars," if i == 0 else f"{'Add' if n >= 0 else 'Subtract'}, {num2words(abs(n), lang='en').replace(' and ', ' ').replace(',', '')} dollars," for i, n in enumerate(problems[q_no])]) + " thats all"
+    
+    # ここで修正した関数を使用
+    full_text = generate_audio_text(problems[q_no])
+    
     temp_file = f"temp_audio_{int(time.time())}.mp3"
     try:
         asyncio.run(generate_edge_audio(full_text, voice_id, temp_file))
@@ -196,8 +224,6 @@ if problems:
         speed_level = st.slider("🚀 スピード (1-15)", 1, 15, 5)
         playback_rate = 0.5 + (speed_level * 0.1)
     with c2:
-        # --- 修正箇所: エラー回避の安全装置 ---
-        # セッションの値をチェックして、範囲外なら強制的に範囲内に収める
         default_val = st.session_state['current_q'] or min_no
         if default_val < min_no: default_val = min_no
         if default_val > max_no: default_val = max_no
