@@ -6,6 +6,7 @@ import time
 import asyncio
 import edge_tts
 import random
+import io  # 追加: メモリ上でデータを扱うため
 from num2words import num2words
 
 # --- 設定 ---
@@ -18,45 +19,41 @@ LOADING_IMAGE = "loading.gif"
 # --- ボイス設定（多国籍版 + ランダム） ---
 VOICE_MAP = {
     "🎲 ランダム (Random)": "random",
-    
-    # 北米
     "🇺🇸 米国 - 女性 (Mary)": "en-US-JennyNeural", 
     "🇺🇸 米国 - 男性 (James)": "en-US-GuyNeural",
     "🇨🇦 カナダ - 女性 (Jennifer)": "en-CA-ClaraNeural",
     "🇨🇦 カナダ - 男性 (Robert)": "en-CA-LiamNeural",
-    
-    # 欧州
     "🇬🇧 英国 - 女性 (Margaret)": "en-GB-LibbyNeural",
     "🇬🇧 英国 - 男性 (David)": "en-GB-RyanNeural",
     "🇮🇪 アイルランド - 女性 (Mary)": "en-IE-EmilyNeural",
     "🇮🇪 アイルランド - 男性 (Patrick)": "en-IE-ConnorNeural",
-    
-    # オセアニア
     "🇦🇺 豪州 - 女性 (Charlotte)": "en-AU-NatashaNeural",
     "🇦🇺 豪州 - 男性 (John)": "en-AU-WilliamNeural",
     "🇳🇿 ニュージーランド - 女性 (Molly)": "en-NZ-MollyNeural",
     "🇳🇿 ニュージーランド - 男性 (Mitchell)": "en-NZ-MitchellNeural",
-    
-    # アジア
     "🇮🇳 インド - 女性 (Priya)": "en-IN-NeerjaNeural",
     "🇮🇳 インド - 男性 (Rahul)": "en-IN-PrabhatNeural",
     "🇸🇬 シンガポール - 女性 (Luna)": "en-SG-LunaNeural",
     "🇸🇬 シンガポール - 男性 (Wayne)": "en-SG-WayneNeural",
     "🇵🇭 フィリピン - 女性 (Rosa)": "en-PH-RosaNeural",
     "🇵🇭 フィリピン - 男性 (James)": "en-PH-JamesNeural",
-    
-    # アフリカ
     "🇿🇦 南アフリカ - 女性 (Leah)": "en-ZA-LeahNeural",
     "🇿🇦 南アフリカ - 男性 (Luke)": "en-ZA-LukeNeural",
     "🇳🇬 ナイジェリア - 女性 (Ezinne)": "en-NG-EzinneNeural",
     "🇳🇬 ナイジェリア - 男性 (Abeo)": "en-NG-AbeoNeural",
 }
 
+# 【軽量化1】背景画像の処理をキャッシュ化（再実行時に計算しない）
+@st.cache_data
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
 def set_bg_image(image_file):
     if not os.path.exists(image_file): return
-    with open(image_file, "rb") as f:
-        img_data = f.read()
-    b64_encoded = base64.b64encode(img_data).decode()
+    # キャッシュされた関数を呼び出す
+    b64_encoded = get_base64_of_bin_file(image_file)
     style = f"""
     <style>
     @keyframes fadeInUp {{
@@ -241,9 +238,7 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
-# 【変更点1】マイナス位置決定ロジックの修正
-# ・中間行の半分以上がマイナスになるようにする
-# ・マイナスは2回までしか連続しない
+# 引き算の生成ロジック（中間行の半分以上、連続2回まで）
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
     nums = []
@@ -253,23 +248,19 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     minus_indices = set()
     if allow_subtraction and rows > 2:
         middle_rows_count = rows - 2
-        # 「半分以上」なので切り上げ計算 (例:3口なら2口)
         min_minus_count = (middle_rows_count + 1) // 2
         
-        # 条件を満たすパターンが見つかるまで試行（通常1回ですぐ見つかる）
         for _ in range(100):
             temp_indices = []
-            consecutive_minus = 0 # 連続回数カウンタ
+            consecutive_minus = 0 
             
             for i in range(middle_rows_count):
-                row_idx = i + 1 # 実際の位置は1行目から
+                row_idx = i + 1 
                 
-                # マイナスにできる条件: 現在の連続が2回未満であること
                 can_be_minus = (consecutive_minus < 2)
                 
                 is_minus = False
                 if can_be_minus:
-                    # マイナス比率を高めるために高確率(70%)で採用
                     if random.random() < 0.7:
                         is_minus = True
                 
@@ -277,9 +268,8 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
                     temp_indices.append(row_idx)
                     consecutive_minus += 1
                 else:
-                    consecutive_minus = 0 # リセット
+                    consecutive_minus = 0 
             
-            # 生成されたパターンが「半分以上」の条件を満たしていれば採用
             if len(temp_indices) >= min_minus_count:
                 minus_indices = set(temp_indices)
                 break
@@ -290,18 +280,15 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
         max_val = 10**d - 1
         
         if r in minus_indices:
-            # 引き算の場合：
-            # 合計がマイナスにならない範囲で値を生成
+            # 引き算
             limit = min(max_val, current_total)
-            
             if min_val <= limit:
                 val = random.randint(min_val, limit)
-                val = -val # 負の数にする
+                val = -val 
             else:
-                # 桁数制約で引けない場合はやむを得ず足し算
                 val = random.randint(min_val, max_val)
         else:
-            # 足し算の場合
+            # 足し算
             val = random.randint(min_val, max_val)
         
         nums.append(val)
@@ -315,35 +302,30 @@ def generate_audio_text(row_data):
     n = len(row_data)
     
     for i, num in enumerate(row_data):
-        # 内部のandを削除
         text_val = num2words(abs(num), lang='en').replace(",", "").replace(" and ", " ")
-        
-        # リズム調整
         delimiter = "." if (i + 1) % 3 == 0 else ","
 
         if i == 0:
-            # 1口目
             speech_parts.append(f"Starting with, {text_val}{delimiter}")
-        
         elif i == n - 1:
-            # 【最後の数字】直前に "and" を入れる
             speech_parts.append(f"and, {text_val}{delimiter}")
-            
         else:
-            # 【中間の数字】
             if num < 0:
-                # 引き算は Minus (間を詰めるためカンマなし)
                 speech_parts.append(f"Minus {text_val}{delimiter}")
             else:
-                # 足し算は宣言しない
                 speech_parts.append(f"{text_val}{delimiter}")
     
     speech_parts.append("That's all.")
     return " ".join(speech_parts)
 
-async def generate_edge_audio(text, voice, output_file):
+# 【軽量化2】ファイル保存を介さずメモリ上で音声データを生成
+async def get_audio_bytes(text, voice):
     communicate = edge_tts.Communicate(text, voice)
-    await communicate.save(output_file)
+    audio_stream = b""
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio_stream += chunk["data"]
+    return audio_stream
 
 def create_and_play_audio(q_no, problems, voice_id, base_speed):
     if q_no not in problems: return
@@ -360,14 +342,14 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
         actual_voice_id = random.choice(available_voices)
 
     full_text = generate_audio_text(problems[q_no])
-    temp_file = f"temp_audio_{int(time.time())}.mp3"
     
     try:
-        asyncio.run(generate_edge_audio(full_text, actual_voice_id, temp_file))
+        # メモリ上で音声データを取得
+        audio_bytes = asyncio.run(get_audio_bytes(full_text, actual_voice_id))
         loading_placeholder.empty()
 
-        with open(temp_file, "rb") as f: audio_b64 = base64.b64encode(f.read()).decode()
-        os.remove(temp_file)
+        # 直接Base64エンコード（ファイルI/Oなし）
+        audio_b64 = base64.b64encode(audio_bytes).decode()
         
         player_id = f"ap_{int(time.time())}"
         
@@ -474,7 +456,6 @@ if problems:
         d_info = [len(str(abs(n))) for n in problems[q_no]]
         p_type = any(n < 0 for n in problems[q_no])
         
-        # HTML/CSSでの装飾をやめ、標準のst.infoを使用して互換性を高める
         type_str = "加減算" if p_type else "加算のみ"
         st.info(f"📊 {min(d_info)}〜{max(d_info)}桁  |  ⚙️ {type_str}")
 
