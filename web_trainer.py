@@ -241,7 +241,7 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
-# 【変更点1】引き算の割合調整（確率ではなく、中間口数の半分を狙う）
+# 引き算の割合調整（確率ではなく、中間口数の半分を狙う）
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
     nums = []
@@ -275,14 +275,13 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
         
     return nums
 
-# 【変更点2】and削除（内部andも削除し、最後のandだけ残す）
+# 【変更点】Minus後のカンマ削除
 def generate_audio_text(row_data):
     speech_parts = []
     n = len(row_data)
     
     for i, num in enumerate(row_data):
-        # num2wordsは "one hundred and twenty" のようにandを入れる
-        # .replace(" and ", " ") で内部のandを削除 -> "one hundred twenty"
+        # 内部のandを削除 -> "one hundred twenty"
         text_val = num2words(abs(num), lang='en').replace(",", "").replace(" and ", " ")
         
         # リズム調整
@@ -294,14 +293,13 @@ def generate_audio_text(row_data):
         
         elif i == n - 1:
             # 【最後の数字】直前に "and" を入れて終了を合図する
-            # 例: ..., Minus 50, and 20.
             speech_parts.append(f"and, {text_val}{delimiter}")
             
         else:
             # 【中間の数字】
             if num < 0:
-                # 引き算は Minus
-                speech_parts.append(f"Minus, {text_val}{delimiter}")
+                # 引き算は Minus (カンマなしで間を詰める)
+                speech_parts.append(f"Minus {text_val}{delimiter}")
             else:
                 # 足し算は宣言しない
                 speech_parts.append(f"{text_val}{delimiter}")
