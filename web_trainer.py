@@ -241,52 +241,70 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
-# 最後は必ずプラスにする
+# 【変更点1】生成ルールの厳密化
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
-    nums = []; current_total = 0
+    nums = []
+    current_total = 0
+    
     for r, d in enumerate(digits_list):
         val = random.randint(10**(d-1), 10**d - 1)
         
-        is_last_row = (r == len(digits_list) - 1)
-        # 最終行以外で、かつ引き算有効の場合のみマイナスにする可能性がある
-        if r > 0 and allow_subtraction and not is_last_row and random.choice([True, False]):
-            if current_total - val >= 0: val = -val
-            
-        nums.append(val); current_total += val
+        # 制約チェック
+        is_first = (r == 0)
+        is_last = (r == len(digits_list) - 1)
+        
+        if is_first:
+            # 最初は必ずプラス
+            pass
+        elif is_last:
+            # 最後は必ずプラス
+            pass
+        elif allow_subtraction:
+            # 確率は50%
+            if random.random() < 0.5:
+                # 答えがマイナスにならない場合のみ引き算にする
+                if current_total - val >= 0:
+                    val = -val
+                else:
+                    # 引くとマイナスになる場合はプラスのまま
+                    pass
+        
+        nums.append(val)
+        current_total += val
+        
     return nums
 
-# 【変更点】読み上げルールの詳細設定
+# 【変更点2】読み上げテキスト生成（Addを廃止し、最後にandを入れる）
 def generate_audio_text(row_data):
     speech_parts = []
     n = len(row_data)
     
     for i, num in enumerate(row_data):
-        # 1. "and" を残す (num2wordsのデフォルト)
-        # one hundred and twenty dollars のようになる
-        text_num = num2words(abs(num), lang='en').replace(",", "")
-        text_with_unit = f"{text_num} dollars"
+        # num2wordsはデフォルトで数字の中にandを入れることがある（例: one hundred and twenty）
+        # ユーザー指示は「5口の数字の直前にandを入れる」という構造上のand
+        text_val = num2words(abs(num), lang='en').replace(",", "")
         
         # リズム調整
         delimiter = "." if (i + 1) % 3 == 0 else ","
 
         if i == 0:
             # 1口目
-            speech_parts.append(f"Starting with, {text_with_unit}{delimiter}")
+            speech_parts.append(f"Starting with, {text_val}{delimiter}")
         
         elif i == n - 1:
-            # 【最後の数字】直前に "Add" を入れる
-            # generate_single_problem で最後は必ず正の数になっている前提
-            speech_parts.append(f"Add, {text_with_unit}{delimiter}")
+            # 【最後の数字】直前に "and" を入れて終了を合図する
+            # 例: ..., Minus 50, and 20.
+            speech_parts.append(f"and, {text_val}{delimiter}")
             
         else:
             # 【中間の数字】
             if num < 0:
-                # 2. Subtract ではなく "Minus"
-                speech_parts.append(f"Minus, {text_with_unit}{delimiter}")
+                # 引き算は Minus
+                speech_parts.append(f"Minus, {text_val}{delimiter}")
             else:
-                # 3. プラスは宣言しない
-                speech_parts.append(f"{text_with_unit}{delimiter}")
+                # 足し算は宣言しない
+                speech_parts.append(f"{text_val}{delimiter}")
     
     speech_parts.append("That's all.")
     return " ".join(speech_parts)
@@ -467,7 +485,3 @@ if problems:
                         st.success(f"正解です ✨ {val:,}")
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
-
-
-
-
