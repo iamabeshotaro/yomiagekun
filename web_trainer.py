@@ -9,22 +9,28 @@ import random
 from num2words import num2words
 
 # --- 設定 ---
-APP_NAME_EN = "Bonjour, madame yomiage"
-APP_NAME_JP = "こんにちは、読み上げ算"
+APP_NAME_EN = "Bonjour, Yomiagesan"
+APP_NAME_JP = "🧮こんにちは、読み上げ算🧮"
 DATA_DIR = "data"
 BG_IMAGE = "background.png"
+LOADING_IMAGE = "loading.gif"  # 読み込み中に表示するGIF画像
 
 # --- ボイス設定 ---
 VOICE_MAP = {
-    "🇺🇸 米国 - 女性 (Ana)": "en-US-AnaNeural",
-    "🇺🇸 米国 - 男性 (Guy)": "en-US-GuyNeural",
-    "🇬🇧 英国 - 女性 (Sonia)": "en-GB-SoniaNeural",
-    "🇬🇧 英国 - 男性 (Ryan)": "en-GB-RyanNeural",
-    "🇦🇺 豪州 - 女性 (Natasha)": "en-AU-NatashaNeural",
-    "🇦🇺 豪州 - 男性 (William)": "en-AU-WilliamNeural",
+    "🇺🇸 米国 - 女性 (Mary)": "en-US-JennyNeural", 
+    "🇺🇸 米国 - 男性 (James)": "en-US-GuyNeural",
+    "🇬🇧 英国 - 女性 (Margaret)": "en-GB-LibbyNeural",
+    "🇬🇧 英国 - 男性 (David)": "en-GB-RyanNeural",
+    "🇦🇺 豪州 - 女性 (Charlotte)": "en-AU-NatashaNeural",
+    "🇦🇺 豪州 - 男性 (John)": "en-AU-WilliamNeural",
+    "🇨🇦 カナダ - 女性 (Jennifer)": "en-CA-ClaraNeural",
+    "🇨🇦 カナダ - 男性 (Robert)": "en-CA-LiamNeural",
+    "🇮🇳 インド - 女性 (Priya)": "en-IN-NeerjaNeural",
+    "🇮🇳 インド - 男性 (Rahul)": "en-IN-PrabhatNeural",
+    "🇮🇪 アイルランド - 女性 (Mary)": "en-IE-EmilyNeural",
+    "🇮🇪 アイルランド - 男性 (Patrick)": "en-IE-ConnorNeural",
 }
 
-# --- スタイル設定 ---
 def set_bg_image(image_file):
     if not os.path.exists(image_file): return
     with open(image_file, "rb") as f:
@@ -32,29 +38,86 @@ def set_bg_image(image_file):
     b64_encoded = base64.b64encode(img_data).decode()
     style = f"""
     <style>
+    /* 1. 全体の背景画像設定 */
     .stApp {{
         background-image: url("data:image/png;base64,{b64_encoded}");
         background-attachment: fixed;
         background-size: cover;
+        background-position: center;
     }}
-    p, div, label, span, li, .stMarkdown {{
-        text-shadow: 0 0 2px rgba(255,255,255, 0.9);
-        color: #222222;
+
+    /* 2. メインエリアの透明度を上げて背景を見せる */
+    .block-container {{
+        background-color: rgba(255, 255, 255, 0.6); /* 透明度を60%に設定 */
+        backdrop-filter: blur(5px); /* ぼかしを少し弱くする */
+        border-radius: 20px;
+        padding: 3rem !important;
+        margin-top: 2rem;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); /* 影を少し薄く */
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        max-width: 700px;
     }}
-    h1, h2, h3, h4 {{
-        color: #111111 !important;
-        text-shadow: 2px 2px 4px rgba(255,255,255, 1.0), -2px -2px 4px rgba(255,255,255, 1.0) !important;
+
+    /* 3. 文字色設定 */
+    h1, h2, h3, h4, h5, p, div, span, label, li {{
+        color: #1A202C !important;
+        font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
     }}
-    [data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {{
-        background-color: rgba(255, 255, 255, 0.96); 
-        padding: 2.5rem;
-        border-radius: 15px;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.2); 
+
+    /* タイトル（h1）をフランス風の筆記体に */
+    h1 {{
+        font-family: 'Dancing Script', cursive !important;
+        font-size: 3em !important;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 10px;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1); /* 少し立体感を出す */
     }}
+    
+    /* 日本語タイトル（h5） */
+    h5 {{
+        text-align: center;
+        color: #4A5568 !important;
+        margin-bottom: 30px;
+        font-weight: normal;
+    }}
+
+    /* 4. ボタンを単色で見やすく（落ち着いた青） */
+    div.stButton > button {{
+        background: #3498db !important; /* グラデーションをやめて単色に */
+        color: white !important;
+        border: none;
+        padding: 0.6rem 1.2rem;
+        border-radius: 50px;
+        font-weight: bold;
+        width: 100%;
+        box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+        transition: all 0.2s;
+    }}
+    div.stButton > button:hover {{
+        background: #2980b9 !important; /* ホバー時は少し濃く */
+        transform: translateY(-2px);
+        box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+    }}
+
+    /* 5. サイドバーの設定 */
     [data-testid="stSidebar"] {{
-         background-color: rgba(250, 250, 250, 0.95);
+        background-color: rgba(255, 255, 255, 0.9); /* サイドバーも少し透過 */
+        border-right: 1px solid #ddd;
+    }}
+    [data-testid="stSidebar"] * {{
+         color: #1A202C !important;
+    }}
+
+    /* エキスパンダーのデザイン */
+    .streamlit-expanderHeader {{
+        background-color: rgba(255, 255, 255, 0.7) !important;
+        color: #1A202C !important;
+        border-radius: 8px;
     }}
     </style>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     """
     st.markdown(style, unsafe_allow_html=True)
 
@@ -116,28 +179,23 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
         nums.append(val); current_total += val
     return nums
 
-# --- 修正: 読み上げテキスト生成ロジック（省略機能の復活） ---
+# --- 読み上げ・再生関連 ---
 def generate_audio_text(row_data):
     speech_parts = []
     last_op = None 
     for i, num in enumerate(row_data):
-        # 桁区切りのカンマなどを除去して読みやすく
         text_num = num2words(abs(num), lang='en').replace(" and ", " ").replace(",", "")
         text_with_unit = f"{text_num} dollars"
-        
         if i == 0:
             speech_parts.append(f"starting with, {text_with_unit},")
-            last_op = "Add" # 最初は必ずプラス扱い
+            last_op = "Add"
         else:
             current_op = "Add" if num >= 0 else "Subtract"
-            # 前回の符号と違う場合のみ、Add/Subtract を言う
             if current_op != last_op:
                 speech_parts.append(f"{current_op}, {text_with_unit},")
                 last_op = current_op
             else:
-                # 同じ場合は数字だけ
                 speech_parts.append(f"{text_with_unit},")
-            
     speech_parts.append("thats all")
     return " ".join(speech_parts)
 
@@ -145,28 +203,74 @@ async def generate_edge_audio(text, voice, output_file):
     communicate = edge_tts.Communicate(text, voice)
     await communicate.save(output_file)
 
-def create_and_play_audio(q_no, problems, voice_id, playback_rate):
+def create_and_play_audio(q_no, problems, voice_id, base_speed):
+    """
+    音声を生成し、HTMLプレイヤーを作成する。
+    base_speed: サイドバーで設定された基準スピード
+    """
     if q_no not in problems: return
     
-    # ここで修正した関数を使用
+    # --- GIF表示ロジック ---
+    loading_placeholder = st.empty()
+    if os.path.exists(LOADING_IMAGE):
+        # GIFがある場合は表示（幅は適宜調整）
+        loading_placeholder.image(LOADING_IMAGE, width=50)
+    else:
+        # GIFがない場合はテキスト表示
+        loading_placeholder.info("音声生成中... (Generating Audio...)")
+
     full_text = generate_audio_text(problems[q_no])
-    
     temp_file = f"temp_audio_{int(time.time())}.mp3"
+    
     try:
+        # 音声生成（非同期）
         asyncio.run(generate_edge_audio(full_text, voice_id, temp_file))
+        
+        # 読み込み完了後にプレースホルダーを消す
+        loading_placeholder.empty()
+
         with open(temp_file, "rb") as f: audio_b64 = base64.b64encode(f.read()).decode()
         os.remove(temp_file)
-        audio_html = f'<audio id="ap" controls autoplay style="width: 100%; margin-top: 15px; border-radius: 30px;"><source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3"></audio><script>document.getElementById("ap").playbackRate = {playback_rate};</script>'
-        st.session_state['correct_ans'] = sum(problems[q_no])
-        st.session_state['audio_html'] = audio_html
-        st.session_state['current_q'] = q_no
-        st.session_state['last_voice_id'] = voice_id
-    except Exception as e: st.error(f"Error: {e}")
+        
+        player_id = f"ap_{int(time.time())}"
+        
+        # HTML生成：base_speed を初期値として埋め込む
+        audio_html = f"""
+            <div style="background-color: #f1f3f6; padding: 15px; border-radius: 10px; border: 1px solid #e0e0e0;">
+                <audio id="{player_id}" controls autoplay style="width: 100%; border-radius: 30px; margin-bottom: 10px;">
+                    <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
+                </audio>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.2em;">🚀</span>
+                    <input type="range" min="1" max="20" value="{int((base_speed - 0.5) * 10)}" step="1" style="flex-grow: 1; cursor: pointer;"
+                        oninput="
+                            var level = this.value;
+                            var rate = 0.5 + (level * 0.1);
+                            var audio = document.getElementById('{player_id}');
+                            if(audio) {{ audio.playbackRate = rate; }}
+                            document.getElementById('rate_disp_{player_id}').innerText = rate.toFixed(1) + 'x';
+                        "
+                    >
+                    <span id="rate_disp_{player_id}" style="font-weight: bold; width: 45px; text-align: right;">{base_speed:.1f}x</span>
+                </div>
+            </div>
+            <script>
+                var audio = document.getElementById("{player_id}");
+                if(audio) {{ audio.playbackRate = {base_speed}; }}
+            </script>
+        """
+        st.session_state.update({'correct_ans': sum(problems[q_no]), 'audio_html': audio_html, 'current_q': q_no, 'last_voice_id': voice_id})
+    except Exception as e: 
+        loading_placeholder.error("エラーが発生しました")
+        st.error(f"Error: {e}")
 
-# --- メインアプリ ---
+# モード変更時のリセット関数
+def reset_audio_state():
+    st.session_state.update({'audio_html': None, 'correct_ans': None, 'current_q': None, 'last_voice_id': None})
+
+# --- メイン UI ---
 st.set_page_config(page_title=APP_NAME_EN, layout="centered", initial_sidebar_state="expanded")
 set_bg_image(BG_IMAGE)
-
 st.title(APP_NAME_EN)
 st.markdown(f"##### {APP_NAME_JP}")
 
@@ -174,34 +278,35 @@ st.markdown(f"##### {APP_NAME_JP}")
 for key in ['correct_ans', 'current_q', 'audio_html', 'last_voice_id', 'generated_problems', 'digit_deck']:
     if key not in st.session_state: st.session_state[key] = None if 'ans' in key or 'html' in key or 'voice' in key or 'q' in key else [] if 'deck' in key else {}
 
-# ガイド
-with st.expander("📖 はじめての方へ（使いかた）", expanded=True):
+with st.expander("📖 使いかた", expanded=False):
     st.markdown("""
-    1.  **設定を確認する**: 左側のメニューで、**『モード』**と**『声』**を選びます。
-    2.  **音声を聴く**: **『再生スタート』**ボタンを押すと、英語で問題が流れます。
-    3.  **計算する**: 聴き取った数字をそろばんなどで計算します。
-    4.  **答え合わせ**: 最後に答えを半角数字で入力し、**『答え合わせ』**を押してください。
+    1. **設定**: 左側で**『モード』**と**『声』**を選びます。
+    2. **スピード**: 左側の**『基本スピード』**で好みの速さを決めておくと、ずっとその速さで再生されます。
+    3. **再生**: **『再生する』**ボタンを押すと、読み込みの後に音声が流れます。
+    4. **答え合わせ**: 答えを入力して**『答え合わせ』**を押してください。
     """)
 
-# ファイル情報
 file_counts = get_problem_counts()
-
-# サイドバー
 with st.sidebar:
     st.header("⚙️ 設定 (Settings)")
-    mode = st.radio("📁 モード選択", ["CSV読み込み", "ランダム生成"])
+    mode = st.radio("📁 モード選択", ["CSV読み込み", "ランダム生成"], on_change=reset_audio_state)
     st.divider()
     
+    # --- スピード設定をサイドバーに移動（固定化） ---
+    st.subheader("🚀 基本スピード")
+    speed_level = st.slider("Level (0.6x - 2.5x)", 1, 20, 5, help="ここでの設定は次の問題にも引き継がれます")
+    base_speed = 0.5 + (speed_level * 0.1)
+    st.caption(f"現在の設定: **{base_speed:.1f}倍速**")
+    st.divider()
+
     if mode == "CSV読み込み":
         selected_file = st.selectbox("年度を選択", options=list(file_counts.keys()), format_func=lambda x: f"{x} ({file_counts.get(x, 0)}問)")
         problems = load_problems_from_csv(selected_file)
     else:
-        min_d = st.number_input("最小桁数", 1, 16, 3)
-        max_d = st.number_input("最大桁数", 1, 16, 16)
+        min_d, max_d = st.number_input("最小桁数", 1, 16, 7), st.number_input("最大桁数", 1, 16, 14)
         rows_count = st.slider("口数 (行数)", 3, 15, 5)
         allow_sub = st.checkbox("引き算を含める", value=False)
         problems = st.session_state['generated_problems']
-
     st.divider()
     selected_voice_label = st.selectbox("話者の声を選択", options=list(VOICE_MAP.keys()))
     selected_voice_id = VOICE_MAP[selected_voice_label]
@@ -210,66 +315,55 @@ with st.sidebar:
 if is_random_mode := (mode == "ランダム生成"):
     if not problems:
         if st.button("🚀 練習をスタートする", type="primary", use_container_width=True):
-            new_p = generate_single_problem(min_d, max_d, rows_count, allow_sub)
-            st.session_state['generated_problems'][1] = new_p
-            create_and_play_audio(1, st.session_state['generated_problems'], selected_voice_id, 1.0)
-            st.rerun()
+            st.session_state['generated_problems'][1] = generate_single_problem(min_d, max_d, rows_count, allow_sub)
+            create_and_play_audio(1, st.session_state['generated_problems'], selected_voice_id, base_speed); st.rerun()
         st.stop()
 
 if problems:
     min_no, max_no = min(problems.keys()), max(problems.keys())
     st.markdown("---")
-    c1, c2 = st.columns([1, 1], gap="medium")
-    with c1:
-        speed_level = st.slider("🚀 スピード (1-15)", 1, 15, 5)
-        playback_rate = 0.5 + (speed_level * 0.1)
-    with c2:
-        default_val = st.session_state['current_q'] or min_no
-        if default_val < min_no: default_val = min_no
-        if default_val > max_no: default_val = max_no
-        
-        q_no = st.number_input("📝 問題番号", min_value=min_no, max_value=max_no, value=default_val)
-        
-        if q_no in problems:
-            d_info = [len(str(abs(n))) for n in problems[q_no]]
-            p_type = any(n < 0 for n in problems[q_no])
-            st.markdown(f'<div style="display: flex; gap: 5px; margin-top: 8px;"><div style="flex: 1; background-color: #e8f5e9; color: #2e7d32; padding: 4px; border-radius: 4px; font-weight: bold; font-size: 0.85em; text-align: center; border: 1px solid #c8e6c9;">📊 {min(d_info)}〜{max(d_info)}桁</div><div style="flex: 1; background-color: {"#fff3e0" if p_type else "#e3f2fd"}; color: {"#ef6c00" if p_type else "#1565c0"}; padding: 4px; border-radius: 4px; font-weight: bold; font-size: 0.85em; text-align: center; border: 1px solid {"#ffe0b2" if p_type else "#bbdefb"};">⚙️ {"加減算" if p_type else "加算"}</div></div>', unsafe_allow_html=True)
+    default_val = st.session_state['current_q'] or min_no
+    q_no = st.number_input("📝 問題番号", min_value=min_no, max_value=max_no, value=min(max(default_val, min_no), max_no))
+    
+    if q_no in problems:
+        d_info = [len(str(abs(n))) for n in problems[q_no]]
+        p_type = any(n < 0 for n in problems[q_no])
+        st.markdown(f'<div style="display: flex; gap: 5px; margin-top: 8px;"><div style="flex: 1; background-color: #e8f5e9; color: #2e7d32; padding: 4px; border-radius: 4px; font-weight: bold; font-size: 0.85em; text-align: center; border: 1px solid #c8e6c9;">📊 {min(d_info)}〜{max(d_info)}桁</div><div style="flex: 1; background-color: {"#fff3e0" if p_type else "#e3f2fd"}; color: {"#ef6c00" if p_type else "#1565c0"}; padding: 4px; border-radius: 4px; font-weight: bold; font-size: 0.85em; text-align: center; border: 1px solid {"#ffe0b2" if p_type else "#bbdefb"};">⚙️ {"加減算" if p_type else "加算"}</div></div>', unsafe_allow_html=True)
 
     if st.session_state['current_q'] != q_no:
         st.session_state.update({'correct_ans': None, 'audio_html': None, 'current_q': q_no, 'last_voice_id': None})
-
+    
+    # 声が変わった場合などの再生成
     if st.session_state['audio_html'] and st.session_state['last_voice_id'] != selected_voice_id:
-        create_and_play_audio(q_no, problems, selected_voice_id, playback_rate); st.rerun()
+        create_and_play_audio(q_no, problems, selected_voice_id, base_speed); st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
     if is_random_mode and q_no == max_no:
         if st.button("🆕 次の問題を出す", type="primary", use_container_width=True):
             new_q = max_no + 1
             st.session_state['generated_problems'][new_q] = generate_single_problem(min_d, max_d, rows_count, allow_sub)
-            create_and_play_audio(new_q, st.session_state['generated_problems'], selected_voice_id, playback_rate); st.rerun()
+            create_and_play_audio(new_q, st.session_state['generated_problems'], selected_voice_id, base_speed); st.rerun()
     else:
         if st.button("▶️ 再生する (Play)", type="primary", use_container_width=True):
-            create_and_play_audio(q_no, problems, selected_voice_id, playback_rate); st.rerun()
+            create_and_play_audio(q_no, problems, selected_voice_id, base_speed); st.rerun()
 
     if st.session_state['audio_html']:
         st.markdown("### 🎧 Listening...")
-        st.components.v1.html(st.session_state['audio_html'], height=80)
+        st.components.v1.html(st.session_state['audio_html'], height=130)
 
-    if q_no in problems:
-        with st.expander("👀 問題の数字を確認する (Show Numbers)"):
-            current_nums = problems[q_no]
-            html_nums = "".join([f"<div style='text-align: right; font-family: monospace; font-size: 1.2em; border-bottom: 1px solid #eee;'>{n:,}</div>" for n in current_nums])
-            st.markdown(html_nums, unsafe_allow_html=True)
-            st.markdown(f"<div style='text-align: right; font-weight: bold; font-size: 1.2em; margin-top: 5px;'>Total: {sum(current_nums):,}</div>", unsafe_allow_html=True)
+    with st.expander("👀 問題の数字を確認する"):
+        if q_no in problems:
+            html_nums = "".join([f"<div style='text-align: right; font-family: monospace; font-size: 1.2em; border-bottom: 1px solid #eee;'>{n:,}</div>" for n in problems[q_no]])
+            st.markdown(html_nums + f"<div style='text-align: right; font-weight: bold; font-size: 1.2em; margin-top: 5px;'>Total: {sum(problems[q_no]):,}</div>", unsafe_allow_html=True)
 
     if st.session_state['correct_ans'] is not None:
         st.divider()
         with st.form(key='ans_form'):
-            user_input = st.text_input("答えを入力してください:", key=f"in_{st.session_state['current_q']}")
-            if st.form_submit_button("答え合わせ (Check)", type="secondary", use_container_width=True):
+            user_input = st.text_input("答えを入力:", key=f"in_{q_no}")
+            if st.form_submit_button("答え合わせ", type="secondary", use_container_width=True):
                 try:
                     val = int(user_input.replace(",", "").strip())
                     if val == st.session_state['correct_ans']:
-                        st.success(f"正解! 🎉 Ans: {val:,}"); st.balloons()
+                        st.success(f"正解! 🎉 {val:,}"); st.balloons()
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
-                except: st.warning("半角数字で入力してください。")
+                except: st.warning("数字を入力してください。")
