@@ -241,7 +241,7 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
-# 引き算の割合調整（確率ではなく、中間口数の半分を狙う）
+# 【変更点1】引き算の生成ロジック修正（確実に引くために上限を現在の合計に合わせる）
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
     nums = []
@@ -252,7 +252,7 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     if allow_subtraction and rows > 2:
         # 最初(0)と最後(rows-1)を除くインデックス候補
         candidates = list(range(1, rows - 1))
-        # 口数の半分を目指す（例: 5口→2個, 10口→5個）
+        # 口数の半分を目指す（例: 5口→2個）
         count = rows // 2
         # 候補数が足りない場合は全候補を使用
         if count > len(candidates):
@@ -261,21 +261,33 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
         minus_indices = set(random.sample(candidates, count))
     
     for r, d in enumerate(digits_list):
-        val = random.randint(10**(d-1), 10**d - 1)
+        # 桁数に基づく最小値と最大値
+        min_val = 10**(d-1)
+        max_val = 10**d - 1
         
-        # 決定されたインデックスであればマイナスを試みる
         if r in minus_indices:
-            # 答えがマイナスにならない場合のみ引き算にする
-            if current_total - val >= 0:
-                val = -val
-            # 引くとマイナスになる場合はプラスのまま（制約優先）
+            # 引き算の場合：
+            # 合計がマイナスにならないように、生成する乱数の上限を「現在の合計」でキャップする
+            # ただし、キャップした結果がその桁数の最小値(min_val)より小さい場合は引けないので足し算にする
+            limit = min(max_val, current_total)
+            
+            if min_val <= limit:
+                val = random.randint(min_val, limit)
+                val = -val # 負の数にする
+            else:
+                # 桁数制約により引くことができない（現在の合計が小さすぎる）場合
+                # やむを得ず足し算にする
+                val = random.randint(min_val, max_val)
+        else:
+            # 足し算の場合
+            val = random.randint(min_val, max_val)
         
         nums.append(val)
         current_total += val
         
     return nums
 
-# 【変更点】Minus後のカンマ削除
+# 【変更点2】読み上げテキスト生成
 def generate_audio_text(row_data):
     speech_parts = []
     n = len(row_data)
@@ -298,7 +310,7 @@ def generate_audio_text(row_data):
         else:
             # 【中間の数字】
             if num < 0:
-                # 引き算は Minus (カンマなしで間を詰める)
+                # 引き算は Minus (カンマなし)
                 speech_parts.append(f"Minus {text_val}{delimiter}")
             else:
                 # 足し算は宣言しない
