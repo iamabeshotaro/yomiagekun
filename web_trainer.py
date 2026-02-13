@@ -59,25 +59,16 @@ def set_bg_image(image_file):
     b64_encoded = base64.b64encode(img_data).decode()
     style = f"""
     <style>
-    /* =========================================
-       アニメーション定義
-       ========================================= */
     @keyframes fadeInUp {{
         0% {{ opacity: 0; transform: translateY(20px); }}
         100% {{ opacity: 1; transform: translateY(0); }}
     }}
-
-    /* =========================================
-       1. 基本設定 (ライトモード / PC基準)
-       ========================================= */
     .stApp {{
         background-image: url("data:image/png;base64,{b64_encoded}");
         background-attachment: fixed;
         background-size: cover;
         background-position: center;
     }}
-
-    /* メインエリア（白い磨りガラス） */
     .block-container {{
         background-color: rgba(255, 255, 255, 0.75);
         backdrop-filter: blur(8px);
@@ -87,22 +78,16 @@ def set_bg_image(image_file):
         border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         max-width: 720px;
-        
-        /* アニメーション */
         opacity: 0;
         animation: fadeInUp 0.8s ease-out 0.3s forwards;
     }}
-
-    /* テキスト色（濃いグレー） */
     h1, h2, h3, h4, h5, p, div, span, label, li, .stMarkdown, .stNumberInput, .stTextInput {{
         color: #2D3748;
         font-family: "Helvetica Neue", Arial, sans-serif;
     }}
-    
-    /* タイトル設定 */
     h1 {{
         font-family: 'Dancing Script', cursive !important;
-        font-size: 3.2rem; /* PC用サイズ */
+        font-size: 3.2rem;
         font-weight: 700;
         text-align: center;
         text-shadow: 2px 2px 0px rgba(255,255,255,0.8);
@@ -116,8 +101,6 @@ def set_bg_image(image_file):
         font-weight: normal;
         margin-bottom: 40px;
     }}
-
-    /* ボタン（鮮やかな青） */
     div.stButton > button {{
         background-color: #3498db !important;
         color: #ffffff !important;
@@ -134,14 +117,10 @@ def set_bg_image(image_file):
         background-color: #2980b9 !important;
         transform: translateY(-2px);
     }}
-
-    /* サイドバー */
     [data-testid="stSidebar"] {{
         background-color: rgba(255, 255, 255, 0.95);
         border-right: 1px solid #E2E8F0;
     }}
-
-    /* Expander（白いカード） */
     [data-testid="stExpander"] {{
         background-color: white;
         border-radius: 8px;
@@ -152,8 +131,6 @@ def set_bg_image(image_file):
         background-color: transparent !important;
         color: #2D3748 !important;
     }}
-
-    /* 数字表示エリア */
     .custom-card {{
         background-color: #FFFFFF;
         padding: 20px;
@@ -170,58 +147,32 @@ def set_bg_image(image_file):
         color: #2D3748;
         padding: 4px 0;
     }}
-    
-    /* 入力フォーム */
     input {{
         background-color: #FFFFFF !important;
         color: #2D3748 !important;
     }}
-
-    /* =========================================
-       2. スマホ対応 (画面幅640px以下)
-       ========================================= */
     @media (max-width: 640px) {{
-        /* タイトルを小さくして改行崩れを防ぐ */
-        h1 {{
-            font-size: 2.0rem !important; 
-        }}
-        /* メインエリアの余白を詰める */
-        .block-container {{
-            padding: 1.5rem !important;
-            margin-top: 0.5rem;
-        }}
+        h1 {{ font-size: 2.0rem !important; }}
+        .block-container {{ padding: 1.5rem !important; margin-top: 0.5rem; }}
     }}
-
-    /* =========================================
-       3. ダークモード対応 (システムの夜間設定に連動)
-       ========================================= */
     @media (prefers-color-scheme: dark) {{
-        /* 黒い磨りガラス背景 */
         .block-container {{
             background-color: rgba(30, 30, 30, 0.75) !important;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }}
-        
-        /* 文字色を白系へ */
         h1, h2, h3, h4, h5, p, div, span, label, li, .stMarkdown, .stNumberInput, .stTextInput {{
             color: #E2E8F0 !important;
         }}
         h1 {{
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.1); /* 影を薄く */
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.1);
             color: #F7FAFC !important;
         }}
-        h5 {{
-            color: #A0AEC0 !important;
-        }}
-
-        /* サイドバー */
+        h5 {{ color: #A0AEC0 !important; }}
         [data-testid="stSidebar"] {{
             background-color: rgba(26, 32, 44, 0.95) !important;
             border-right: 1px solid #2D3748;
         }}
-
-        /* 入力フォーム・カード類をダークカラーへ */
         input {{
             background-color: #1A202C !important;
             color: #E2E8F0 !important;
@@ -235,9 +186,7 @@ def set_bg_image(image_file):
             color: #E2E8F0 !important;
             border-bottom: 1px solid #4A5568 !important;
         }}
-        .streamlit-expanderHeader {{
-            color: #E2E8F0 !important;
-        }}
+        .streamlit-expanderHeader {{ color: #E2E8F0 !important; }}
     }}
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
@@ -292,38 +241,51 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
+# 最後は必ずプラスにする
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
     nums = []; current_total = 0
     for r, d in enumerate(digits_list):
         val = random.randint(10**(d-1), 10**d - 1)
-        if r > 0 and allow_subtraction and random.choice([True, False]):
+        
+        is_last_row = (r == len(digits_list) - 1)
+        # 最終行以外で、かつ引き算有効の場合のみマイナスにする可能性がある
+        if r > 0 and allow_subtraction and not is_last_row and random.choice([True, False]):
             if current_total - val >= 0: val = -val
+            
         nums.append(val); current_total += val
     return nums
 
-# --- 読み上げ・再生関連 ---
+# 【変更点】読み上げルールの詳細設定
 def generate_audio_text(row_data):
     speech_parts = []
-    last_op = None 
+    n = len(row_data)
     
     for i, num in enumerate(row_data):
-        # 数字を単語に変換
-        text_num = num2words(abs(num), lang='en').replace(" and ", " ").replace(",", "")
+        # 1. "and" を残す (num2wordsのデフォルト)
+        # one hundred and twenty dollars のようになる
+        text_num = num2words(abs(num), lang='en').replace(",", "")
         text_with_unit = f"{text_num} dollars"
         
-        # 3回に1回はピリオドで区切る
+        # リズム調整
         delimiter = "." if (i + 1) % 3 == 0 else ","
 
         if i == 0:
-            speech_parts.append(f"starting with, {text_with_unit}{delimiter}")
-            last_op = "Add"
+            # 1口目
+            speech_parts.append(f"Starting with, {text_with_unit}{delimiter}")
+        
+        elif i == n - 1:
+            # 【最後の数字】直前に "Add" を入れる
+            # generate_single_problem で最後は必ず正の数になっている前提
+            speech_parts.append(f"Add, {text_with_unit}{delimiter}")
+            
         else:
-            current_op = "Add" if num >= 0 else "Subtract"
-            if current_op != last_op:
-                speech_parts.append(f"{current_op}, {text_with_unit}{delimiter}")
-                last_op = current_op
+            # 【中間の数字】
+            if num < 0:
+                # 2. Subtract ではなく "Minus"
+                speech_parts.append(f"Minus, {text_with_unit}{delimiter}")
             else:
+                # 3. プラスは宣言しない
                 speech_parts.append(f"{text_with_unit}{delimiter}")
     
     speech_parts.append("That's all.")
@@ -342,7 +304,6 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
     else:
         loading_placeholder.markdown("<span style='color:#718096; font-size:0.9em;'>Generating audio...</span>", unsafe_allow_html=True)
 
-    # ランダム選択ロジック
     actual_voice_id = voice_id
     if voice_id == "random":
         available_voices = [v for k, v in VOICE_MAP.items() if v != "random"]
@@ -389,14 +350,12 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
         loading_placeholder.error("エラーが発生しました")
         st.error(f"Error: {e}")
 
-# モード変更時のリセット関数（強力にリセット）
 def reset_audio_state():
     st.session_state.update({
         'audio_html': None, 
         'correct_ans': None, 
         'current_q': None, 
         'last_voice_id': None,
-        # モード切替時に過去の生成問題もクリアする（整合性保持のため）
         'generated_problems': {} 
     })
 
@@ -406,7 +365,6 @@ set_bg_image(BG_IMAGE)
 st.title(APP_NAME_EN)
 st.markdown(f"##### {APP_NAME_JP}")
 
-# セッション初期化
 for key in ['correct_ans', 'current_q', 'audio_html', 'last_voice_id', 'generated_problems', 'digit_deck']:
     if key not in st.session_state: st.session_state[key] = None if 'ans' in key or 'html' in key or 'voice' in key or 'q' in key else [] if 'deck' in key else {}
 
@@ -445,9 +403,7 @@ with st.sidebar:
 # メイン処理
 if is_random_mode := (mode == "ランダム生成"):
     if not problems:
-        # 初回生成（1問目）
         if st.button("▶️ 再生する (Play)", type="primary", use_container_width=True):
-            # 【変更点】常に辞書を新規作成して上書きする
             st.session_state['generated_problems'] = {1: generate_single_problem(min_d, max_d, rows_count, allow_sub)}
             create_and_play_audio(1, st.session_state['generated_problems'], selected_voice_id, base_speed); st.rerun()
         st.stop()
@@ -456,7 +412,6 @@ if problems:
     min_no, max_no = min(problems.keys()), max(problems.keys())
     st.markdown("---")
     
-    # モード切替時の整合性チェック
     current_q_val = st.session_state.get('current_q')
     if current_q_val is None or current_q_val < min_no or current_q_val > max_no:
         default_val = min_no
@@ -478,11 +433,9 @@ if problems:
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # 次の問題ボタン
     if is_random_mode and q_no == max_no:
         if st.button("🆕 次の問題を出す", type="primary", use_container_width=True):
             new_q = max_no + 1
-            # 【変更点】古い問題を消去し、新しい問題番号で辞書を上書きする
             st.session_state['generated_problems'] = {new_q: generate_single_problem(min_d, max_d, rows_count, allow_sub)}
             create_and_play_audio(new_q, st.session_state['generated_problems'], selected_voice_id, base_speed); st.rerun()
     else:
@@ -493,7 +446,6 @@ if problems:
         st.markdown("### 🎧 Listening...")
         st.components.v1.html(st.session_state['audio_html'], height=130)
 
-    # 数字表示
     with st.expander("📜 問題の数字を確認する"):
         if q_no in problems:
             html_nums = "".join([f"<div class='number-display'>{n:,}</div>" for n in problems[q_no]])
@@ -515,6 +467,7 @@ if problems:
                         st.success(f"正解です ✨ {val:,}")
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
+
 
 
 
