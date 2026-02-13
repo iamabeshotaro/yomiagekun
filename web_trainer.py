@@ -47,7 +47,7 @@ def set_bg_image(image_file):
     }}
 
     /* =========================================
-       全体設定（ダークモード設定を無視して統一）
+       1. 基本設定 (ライトモード / PC基準)
        ========================================= */
     .stApp {{
         background-image: url("data:image/png;base64,{b64_encoded}");
@@ -56,9 +56,9 @@ def set_bg_image(image_file):
         background-position: center;
     }}
 
-    /* メインエリア（磨りガラス） */
+    /* メインエリア（白い磨りガラス） */
     .block-container {{
-        background-color: rgba(255, 255, 255, 0.4) !important; /* 常に見やすい白 */
+        background-color: rgba(255, 255, 255, 0.75);
         backdrop-filter: blur(8px);
         border-radius: 20px;
         padding: 3rem !important;
@@ -67,26 +67,27 @@ def set_bg_image(image_file):
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         max-width: 720px;
         
-        /* アニメーション：0.3秒待ってから0.8秒かけて表示 */
-        opacity: 0; /* 最初は隠す */
+        /* アニメーション */
+        opacity: 0;
         animation: fadeInUp 0.8s ease-out 0.3s forwards;
     }}
 
-    /* テキスト色（常に濃いグレー） */
+    /* テキスト色（濃いグレー） */
     h1, h2, h3, h4, h5, p, div, span, label, li, .stMarkdown, .stNumberInput, .stTextInput {{
-        color: #2D3748 !important;
+        color: #2D3748;
         font-family: "Helvetica Neue", Arial, sans-serif;
     }}
     
-    /* タイトル */
+    /* タイトル設定 */
     h1 {{
         font-family: 'Dancing Script', cursive !important;
-        font-size: 3.2em !important;
+        font-size: 3.2rem; /* PC用サイズ */
         font-weight: 700;
         text-align: center;
         text-shadow: 2px 2px 0px rgba(255,255,255,0.8);
         margin-bottom: 10px;
         color: #1A202C !important;
+        line-height: 1.2;
     }}
     h5 {{
         text-align: center;
@@ -95,41 +96,36 @@ def set_bg_image(image_file):
         margin-bottom: 40px;
     }}
 
-    /* 4. ボタン：明るく鮮やかな青に変更して視認性をアップ */
+    /* ボタン（鮮やかな青） */
     div.stButton > button {{
-        background-color: #3498db !important; /* 明るい信頼感のある青 */
-        color: #ffffff !important;           /* 文字は真っ白 */
+        background-color: #3498db !important;
+        color: #ffffff !important;
         border: none !important;
         padding: 0.7rem 1.2rem !important;
-        border-radius: 50px !important;      /* 優しい丸みに */
+        border-radius: 50px !important;
         font-weight: 600 !important;
         letter-spacing: 1px;
         width: 100%;
-        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3) !important; /* 青い影で浮かせる */
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3) !important;
         transition: all 0.3s ease;
-        opacity: 1 !important;               /* 透明にならないよう強制 */
     }}
     div.stButton > button:hover {{
-        background-color: #2980b9 !important; /* ホバー時は少しだけ濃く */
+        background-color: #2980b9 !important;
         transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4) !important;
     }}
 
     /* サイドバー */
     [data-testid="stSidebar"] {{
-        background-color: rgba(255, 255, 255, 0.95) !important;
+        background-color: rgba(255, 255, 255, 0.95);
         border-right: 1px solid #E2E8F0;
-    }}
-    [data-testid="stSidebar"] * {{
-         color: #2D3748 !important;
     }}
 
     /* Expander（白いカード） */
     [data-testid="stExpander"] {{
-        background-color: white !important;
+        background-color: white;
         border-radius: 8px;
         border: 1px solid #E2E8F0;
-        color: #2D3748 !important;
+        color: #2D3748;
     }}
     .streamlit-expanderHeader {{
         background-color: transparent !important;
@@ -154,10 +150,73 @@ def set_bg_image(image_file):
         padding: 4px 0;
     }}
     
-    /* 入力フォームの背景を白に固定 */
+    /* 入力フォーム */
     input {{
         background-color: #FFFFFF !important;
         color: #2D3748 !important;
+    }}
+
+    /* =========================================
+       2. スマホ対応 (画面幅640px以下)
+       ========================================= */
+    @media (max-width: 640px) {{
+        /* タイトルを小さくして改行崩れを防ぐ */
+        h1 {{
+            font-size: 2.0rem !important; 
+        }}
+        /* メインエリアの余白を詰める */
+        .block-container {{
+            padding: 1.5rem !important;
+            margin-top: 0.5rem;
+        }}
+    }}
+
+    /* =========================================
+       3. ダークモード対応 (システムの夜間設定に連動)
+       ========================================= */
+    @media (prefers-color-scheme: dark) {{
+        /* 黒い磨りガラス背景 */
+        .block-container {{
+            background-color: rgba(30, 30, 30, 0.75) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }}
+        
+        /* 文字色を白系へ */
+        h1, h2, h3, h4, h5, p, div, span, label, li, .stMarkdown, .stNumberInput, .stTextInput {{
+            color: #E2E8F0 !important;
+        }}
+        h1 {{
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.1); /* 影を薄く */
+            color: #F7FAFC !important;
+        }}
+        h5 {{
+            color: #A0AEC0 !important;
+        }}
+
+        /* サイドバー */
+        [data-testid="stSidebar"] {{
+            background-color: rgba(26, 32, 44, 0.95) !important;
+            border-right: 1px solid #2D3748;
+        }}
+
+        /* 入力フォーム・カード類をダークカラーへ */
+        input {{
+            background-color: #1A202C !important;
+            color: #E2E8F0 !important;
+        }}
+        .custom-card, [data-testid="stExpander"] {{
+            background-color: #2D3748 !important;
+            color: #E2E8F0 !important;
+            border: 1px solid #4A5568 !important;
+        }}
+        .number-display {{
+            color: #E2E8F0 !important;
+            border-bottom: 1px solid #4A5568 !important;
+        }}
+        .streamlit-expanderHeader {{
+            color: #E2E8F0 !important;
+        }}
     }}
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
