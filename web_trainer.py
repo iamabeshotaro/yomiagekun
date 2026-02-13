@@ -385,7 +385,7 @@ with st.sidebar:
     st.divider()
     
     st.subheader("🕰️ 基本スピード")
-    speed_level = st.slider("Level (0.6x - 2.5x)", 1, 20, 5, help="ここでの設定は次の問題にも引き継がれます")
+    speed_level = st.slider("Level (0.6x - 2.5x)", 1, 20, 10, help="ここでの設定は次の問題にも引き継がれます")
     base_speed = 0.5 + (speed_level * 0.1)
     st.caption(f"現在の設定: **{base_speed:.1f}倍速**")
     st.divider()
@@ -405,7 +405,7 @@ with st.sidebar:
 # メイン処理
 if is_random_mode := (mode == "ランダム生成"):
     if not problems:
-        if st.button("🎼 練習をスタートする", type="primary", use_container_width=True):
+        if st.button("▶️ 再生する (Play)", type="primary", use_container_width=True):
             st.session_state['generated_problems'][1] = generate_single_problem(min_d, max_d, rows_count, allow_sub)
             create_and_play_audio(1, st.session_state['generated_problems'], selected_voice_id, base_speed); st.rerun()
         st.stop()
@@ -463,3 +463,4 @@ if problems:
                         st.success(f"正解です ✨ {val:,}")
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
+
