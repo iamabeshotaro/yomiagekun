@@ -10,10 +10,10 @@ from num2words import num2words
 
 # --- 設定 ---
 APP_NAME_EN = "Bonjour, Yomiagesan"
-APP_NAME_JP = "🧮こんにちは、読み上げ算🧮"
+APP_NAME_JP = "こんにちは、読み上げ算"
 DATA_DIR = "data"
 BG_IMAGE = "background.png"
-LOADING_IMAGE = "loading.gif"  # 読み込み中に表示するGIF画像
+LOADING_IMAGE = "loading.gif"
 
 # --- ボイス設定 ---
 VOICE_MAP = {
@@ -38,7 +38,17 @@ def set_bg_image(image_file):
     b64_encoded = base64.b64encode(img_data).decode()
     style = f"""
     <style>
-    /* 1. 全体の背景画像設定 */
+    /* =========================================
+       アニメーション定義
+       ========================================= */
+    @keyframes fadeInUp {{
+        0% {{ opacity: 0; transform: translateY(20px); }}
+        100% {{ opacity: 1; transform: translateY(0); }}
+    }}
+
+    /* =========================================
+       全体設定（ダークモード設定を無視して統一）
+       ========================================= */
     .stApp {{
         background-image: url("data:image/png;base64,{b64_encoded}");
         background-attachment: fixed;
@@ -46,77 +56,110 @@ def set_bg_image(image_file):
         background-position: center;
     }}
 
-    /* 2. メインエリアの透明度を上げて背景を見せる */
+    /* メインエリア（磨りガラス） */
     .block-container {{
-        background-color: rgba(255, 255, 255, 0.6); /* 透明度を60%に設定 */
-        backdrop-filter: blur(5px); /* ぼかしを少し弱くする */
+        background-color: rgba(255, 255, 255, 0.4) !important; /* 常に見やすい白 */
+        backdrop-filter: blur(8px);
         border-radius: 20px;
         padding: 3rem !important;
         margin-top: 2rem;
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); /* 影を少し薄く */
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        max-width: 700px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        max-width: 720px;
+        
+        /* アニメーション：0.3秒待ってから0.8秒かけて表示 */
+        opacity: 0; /* 最初は隠す */
+        animation: fadeInUp 0.8s ease-out 0.3s forwards;
     }}
 
-    /* 3. 文字色設定 */
-    h1, h2, h3, h4, h5, p, div, span, label, li {{
-        color: #1A202C !important;
-        font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
-    }}
-
-    /* タイトル（h1）をフランス風の筆記体に */
-    h1 {{
-        font-family: 'Dancing Script', cursive !important;
-        font-size: 3em !important;
-        font-weight: 700;
-        text-align: center;
-        margin-bottom: 10px;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.1); /* 少し立体感を出す */
+    /* テキスト色（常に濃いグレー） */
+    h1, h2, h3, h4, h5, p, div, span, label, li, .stMarkdown, .stNumberInput, .stTextInput {{
+        color: #2D3748 !important;
+        font-family: "Helvetica Neue", Arial, sans-serif;
     }}
     
-    /* 日本語タイトル（h5） */
+    /* タイトル */
+    h1 {{
+        font-family: 'Dancing Script', cursive !important;
+        font-size: 3.2em !important;
+        font-weight: 700;
+        text-align: center;
+        text-shadow: 2px 2px 0px rgba(255,255,255,0.8);
+        margin-bottom: 10px;
+        color: #1A202C !important;
+    }}
     h5 {{
         text-align: center;
         color: #4A5568 !important;
-        margin-bottom: 30px;
         font-weight: normal;
+        margin-bottom: 40px;
     }}
 
-    /* 4. ボタンを単色で見やすく（落ち着いた青） */
+    /* 4. ボタン：明るく鮮やかな青に変更して視認性をアップ */
     div.stButton > button {{
-        background: #3498db !important; /* グラデーションをやめて単色に */
-        color: white !important;
-        border: none;
-        padding: 0.6rem 1.2rem;
-        border-radius: 50px;
-        font-weight: bold;
+        background-color: #3498db !important; /* 明るい信頼感のある青 */
+        color: #ffffff !important;           /* 文字は真っ白 */
+        border: none !important;
+        padding: 0.7rem 1.2rem !important;
+        border-radius: 50px !important;      /* 優しい丸みに */
+        font-weight: 600 !important;
+        letter-spacing: 1px;
         width: 100%;
-        box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
-        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3) !important; /* 青い影で浮かせる */
+        transition: all 0.3s ease;
+        opacity: 1 !important;               /* 透明にならないよう強制 */
     }}
     div.stButton > button:hover {{
-        background: #2980b9 !important; /* ホバー時は少し濃く */
+        background-color: #2980b9 !important; /* ホバー時は少しだけ濃く */
         transform: translateY(-2px);
-        box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4) !important;
     }}
 
-    /* 5. サイドバーの設定 */
+    /* サイドバー */
     [data-testid="stSidebar"] {{
-        background-color: rgba(255, 255, 255, 0.9); /* サイドバーも少し透過 */
-        border-right: 1px solid #ddd;
+        background-color: rgba(255, 255, 255, 0.95) !important;
+        border-right: 1px solid #E2E8F0;
     }}
     [data-testid="stSidebar"] * {{
-         color: #1A202C !important;
+         color: #2D3748 !important;
     }}
 
-    /* エキスパンダーのデザイン */
-    .streamlit-expanderHeader {{
-        background-color: rgba(255, 255, 255, 0.7) !important;
-        color: #1A202C !important;
+    /* Expander（白いカード） */
+    [data-testid="stExpander"] {{
+        background-color: white !important;
         border-radius: 8px;
+        border: 1px solid #E2E8F0;
+        color: #2D3748 !important;
+    }}
+    .streamlit-expanderHeader {{
+        background-color: transparent !important;
+        color: #2D3748 !important;
+    }}
+
+    /* 数字表示エリア */
+    .custom-card {{
+        background-color: #FFFFFF;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        color: #2D3748;
+    }}
+    .number-display {{
+        text-align: right; 
+        font-family: monospace; 
+        font-size: 1.2em; 
+        border-bottom: 1px solid #EDF2F7;
+        color: #2D3748;
+        padding: 4px 0;
+    }}
+    
+    /* 入力フォームの背景を白に固定 */
+    input {{
+        background-color: #FFFFFF !important;
+        color: #2D3748 !important;
     }}
     </style>
-    
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     """
     st.markdown(style, unsafe_allow_html=True)
@@ -204,29 +247,19 @@ async def generate_edge_audio(text, voice, output_file):
     await communicate.save(output_file)
 
 def create_and_play_audio(q_no, problems, voice_id, base_speed):
-    """
-    音声を生成し、HTMLプレイヤーを作成する。
-    base_speed: サイドバーで設定された基準スピード
-    """
     if q_no not in problems: return
     
-    # --- GIF表示ロジック ---
     loading_placeholder = st.empty()
     if os.path.exists(LOADING_IMAGE):
-        # GIFがある場合は表示（幅は適宜調整）
         loading_placeholder.image(LOADING_IMAGE, width=50)
     else:
-        # GIFがない場合はテキスト表示
-        loading_placeholder.info("音声生成中... (Generating Audio...)")
+        loading_placeholder.markdown("<span style='color:#718096; font-size:0.9em;'>Generating audio...</span>", unsafe_allow_html=True)
 
     full_text = generate_audio_text(problems[q_no])
     temp_file = f"temp_audio_{int(time.time())}.mp3"
     
     try:
-        # 音声生成（非同期）
         asyncio.run(generate_edge_audio(full_text, voice_id, temp_file))
-        
-        # 読み込み完了後にプレースホルダーを消す
         loading_placeholder.empty()
 
         with open(temp_file, "rb") as f: audio_b64 = base64.b64encode(f.read()).decode()
@@ -234,14 +267,14 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
         
         player_id = f"ap_{int(time.time())}"
         
-        # HTML生成：base_speed を初期値として埋め込む
+        # HTML: クラス名 'custom-card' を適用してCSSで色制御
         audio_html = f"""
-            <div style="background-color: #f1f3f6; padding: 15px; border-radius: 10px; border: 1px solid #e0e0e0;">
-                <audio id="{player_id}" controls autoplay style="width: 100%; border-radius: 30px; margin-bottom: 10px;">
+            <div class="custom-card">
+                <audio id="{player_id}" controls autoplay style="width: 100%; margin-bottom: 10px;">
                     <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
                 </audio>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 1.2em;">🚀</span>
+                    <span style="font-size: 1.2em;">🕰️</span>
                     <input type="range" min="1" max="20" value="{int((base_speed - 0.5) * 10)}" step="1" style="flex-grow: 1; cursor: pointer;"
                         oninput="
                             var level = this.value;
@@ -292,8 +325,7 @@ with st.sidebar:
     mode = st.radio("📁 モード選択", ["CSV読み込み", "ランダム生成"], on_change=reset_audio_state)
     st.divider()
     
-    # --- スピード設定をサイドバーに移動（固定化） ---
-    st.subheader("🚀 基本スピード")
+    st.subheader("🕰️ 基本スピード")
     speed_level = st.slider("Level (0.6x - 2.5x)", 1, 20, 5, help="ここでの設定は次の問題にも引き継がれます")
     base_speed = 0.5 + (speed_level * 0.1)
     st.caption(f"現在の設定: **{base_speed:.1f}倍速**")
@@ -314,7 +346,7 @@ with st.sidebar:
 # メイン処理
 if is_random_mode := (mode == "ランダム生成"):
     if not problems:
-        if st.button("🚀 練習をスタートする", type="primary", use_container_width=True):
+        if st.button("🎼 練習をスタートする", type="primary", use_container_width=True):
             st.session_state['generated_problems'][1] = generate_single_problem(min_d, max_d, rows_count, allow_sub)
             create_and_play_audio(1, st.session_state['generated_problems'], selected_voice_id, base_speed); st.rerun()
         st.stop()
@@ -333,7 +365,6 @@ if problems:
     if st.session_state['current_q'] != q_no:
         st.session_state.update({'correct_ans': None, 'audio_html': None, 'current_q': q_no, 'last_voice_id': None})
     
-    # 声が変わった場合などの再生成
     if st.session_state['audio_html'] and st.session_state['last_voice_id'] != selected_voice_id:
         create_and_play_audio(q_no, problems, selected_voice_id, base_speed); st.rerun()
 
@@ -351,10 +382,16 @@ if problems:
         st.markdown("### 🎧 Listening...")
         st.components.v1.html(st.session_state['audio_html'], height=130)
 
-    with st.expander("👀 問題の数字を確認する"):
+    # 数字表示：custom-card クラスを使用してモード対応
+    with st.expander("📜 問題の数字を確認する"):
         if q_no in problems:
-            html_nums = "".join([f"<div style='text-align: right; font-family: monospace; font-size: 1.2em; border-bottom: 1px solid #eee;'>{n:,}</div>" for n in problems[q_no]])
-            st.markdown(html_nums + f"<div style='text-align: right; font-weight: bold; font-size: 1.2em; margin-top: 5px;'>Total: {sum(problems[q_no]):,}</div>", unsafe_allow_html=True)
+            html_nums = "".join([f"<div class='number-display'>{n:,}</div>" for n in problems[q_no]])
+            st.markdown(f"""
+            <div class="custom-card">
+                {html_nums}
+                <div style='text-align: right; font-weight: bold; font-size: 1.2em; margin-top: 5px; color: inherit;'>Total: {sum(problems[q_no]):,}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
     if st.session_state['correct_ans'] is not None:
         st.divider()
@@ -364,6 +401,10 @@ if problems:
                 try:
                     val = int(user_input.replace(",", "").strip())
                     if val == st.session_state['correct_ans']:
+                        st.success(f"正解です ✨ {val:,}")
+                    else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
+                except: st.warning("数字を入力してください。")
                         st.success(f"正解! 🎉 {val:,}"); st.balloons()
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
+
