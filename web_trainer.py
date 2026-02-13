@@ -285,20 +285,27 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
 def generate_audio_text(row_data):
     speech_parts = []
     last_op = None 
+    
     for i, num in enumerate(row_data):
+        # 数字を単語に変換
         text_num = num2words(abs(num), lang='en').replace(" and ", " ").replace(",", "")
         text_with_unit = f"{text_num} dollars"
+        
+        # 3回に1回はピリオドで区切る
+        delimiter = "." if (i + 1) % 3 == 0 else ","
+
         if i == 0:
-            speech_parts.append(f"starting with, {text_with_unit},")
+            speech_parts.append(f"starting with, {text_with_unit}{delimiter}")
             last_op = "Add"
         else:
             current_op = "Add" if num >= 0 else "Subtract"
             if current_op != last_op:
-                speech_parts.append(f"{current_op}, {text_with_unit},")
+                speech_parts.append(f"{current_op}, {text_with_unit}{delimiter}")
                 last_op = current_op
             else:
-                speech_parts.append(f"{text_with_unit},")
-    speech_parts.append("thats all")
+                speech_parts.append(f"{text_with_unit}{delimiter}")
+    
+    speech_parts.append("That's all.")
     return " ".join(speech_parts)
 
 async def generate_edge_audio(text, voice, output_file):
@@ -326,7 +333,6 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
         
         player_id = f"ap_{int(time.time())}"
         
-        # HTML: クラス名 'custom-card' を適用してCSSで色制御
         audio_html = f"""
             <div class="custom-card">
                 <audio id="{player_id}" controls autoplay style="width: 100%; margin-bottom: 10px;">
@@ -381,7 +387,8 @@ with st.expander("📖 使いかた", expanded=False):
 file_counts = get_problem_counts()
 with st.sidebar:
     st.header("⚙️ 設定 (Settings)")
-    mode = st.radio("📁 モード選択", ["CSV読み込み", "ランダム生成"], on_change=reset_audio_state)
+    # 【変更点】ランダム生成をリストの先頭にして、デフォルト選択にする
+    mode = st.radio("📁 モード選択", ["ランダム生成", "CSV読み込み"], on_change=reset_audio_state)
     st.divider()
     
     st.subheader("🕰️ 基本スピード")
@@ -463,4 +470,3 @@ if problems:
                         st.success(f"正解です ✨ {val:,}")
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
-
