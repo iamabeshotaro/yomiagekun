@@ -16,13 +16,12 @@ BG_IMAGE = "background.png"
 LOADING_IMAGE = "loading.gif"
 
 # --- ボイス設定（多国籍版 + ランダム） ---
-# 辞書の先頭にランダムを追加することで、デフォルトがランダムになります
 VOICE_MAP = {
-    "🎲 ランダム (Random)": "random",  # これを標準にする
+    "🎲 ランダム (Random)": "random",
     
     # 北米
     "🇺🇸 米国 - 女性 (Mary)": "en-US-JennyNeural", 
-    "🇺🇸 米国 - 男性 (Tom)": "en-US-GuyNeural",
+    "🇺🇸 米国 - 男性 (James)": "en-US-GuyNeural",
     "🇨🇦 カナダ - 女性 (Jennifer)": "en-CA-ClaraNeural",
     "🇨🇦 カナダ - 男性 (Robert)": "en-CA-LiamNeural",
     
@@ -346,7 +345,6 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
     # ランダム選択ロジック
     actual_voice_id = voice_id
     if voice_id == "random":
-        # ランダム以外の全てのボイスIDを取得して抽選
         available_voices = [v for k, v in VOICE_MAP.items() if v != "random"]
         actual_voice_id = random.choice(available_voices)
 
@@ -391,9 +389,16 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
         loading_placeholder.error("エラーが発生しました")
         st.error(f"Error: {e}")
 
-# モード変更時のリセット関数
+# モード変更時のリセット関数（強力にリセット）
 def reset_audio_state():
-    st.session_state.update({'audio_html': None, 'correct_ans': None, 'current_q': None, 'last_voice_id': None})
+    st.session_state.update({
+        'audio_html': None, 
+        'correct_ans': None, 
+        'current_q': None, 
+        'last_voice_id': None,
+        # モード切替時に過去の生成問題もクリアする（整合性保持のため）
+        'generated_problems': {} 
+    })
 
 # --- メイン UI ---
 st.set_page_config(page_title=APP_NAME_EN, layout="centered", initial_sidebar_state="expanded")
@@ -434,23 +439,31 @@ with st.sidebar:
         allow_sub = st.checkbox("引き算を含める", value=False)
         problems = st.session_state['generated_problems']
     st.divider()
-    # 選択肢は VOICE_MAP のキー順に表示されるので、先頭の「ランダム」がデフォルトになります
     selected_voice_label = st.selectbox("話者の声を選択", options=list(VOICE_MAP.keys()))
     selected_voice_id = VOICE_MAP[selected_voice_label]
 
 # メイン処理
 if is_random_mode := (mode == "ランダム生成"):
     if not problems:
+        # 初回生成（1問目）
         if st.button("▶️ 再生する (Play)", type="primary", use_container_width=True):
-            st.session_state['generated_problems'][1] = generate_single_problem(min_d, max_d, rows_count, allow_sub)
+            # 【変更点】常に辞書を新規作成して上書きする
+            st.session_state['generated_problems'] = {1: generate_single_problem(min_d, max_d, rows_count, allow_sub)}
             create_and_play_audio(1, st.session_state['generated_problems'], selected_voice_id, base_speed); st.rerun()
         st.stop()
 
 if problems:
     min_no, max_no = min(problems.keys()), max(problems.keys())
     st.markdown("---")
-    default_val = st.session_state['current_q'] or min_no
-    q_no = st.number_input("📝 問題番号", min_value=min_no, max_value=max_no, value=min(max(default_val, min_no), max_no))
+    
+    # モード切替時の整合性チェック
+    current_q_val = st.session_state.get('current_q')
+    if current_q_val is None or current_q_val < min_no or current_q_val > max_no:
+        default_val = min_no
+    else:
+        default_val = current_q_val
+
+    q_no = st.number_input("📝 問題番号", min_value=min_no, max_value=max_no, value=default_val, key=f"q_selector_{mode}")
     
     if q_no in problems:
         d_info = [len(str(abs(n))) for n in problems[q_no]]
@@ -460,16 +473,17 @@ if problems:
     if st.session_state['current_q'] != q_no:
         st.session_state.update({'correct_ans': None, 'audio_html': None, 'current_q': q_no, 'last_voice_id': None})
     
-    # 選択ボイスが変わった場合の再生成
-    # ※ランダム(random)選択中はずっと "random" なので、ボタンを押さない限り再生成されません（意図通りの挙動）
     if st.session_state['audio_html'] and st.session_state['last_voice_id'] != selected_voice_id:
         create_and_play_audio(q_no, problems, selected_voice_id, base_speed); st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 次の問題ボタン
     if is_random_mode and q_no == max_no:
         if st.button("🆕 次の問題を出す", type="primary", use_container_width=True):
             new_q = max_no + 1
-            st.session_state['generated_problems'][new_q] = generate_single_problem(min_d, max_d, rows_count, allow_sub)
+            # 【変更点】古い問題を消去し、新しい問題番号で辞書を上書きする
+            st.session_state['generated_problems'] = {new_q: generate_single_problem(min_d, max_d, rows_count, allow_sub)}
             create_and_play_audio(new_q, st.session_state['generated_problems'], selected_voice_id, base_speed); st.rerun()
     else:
         if st.button("▶️ 再生する (Play)", type="primary", use_container_width=True):
@@ -479,7 +493,7 @@ if problems:
         st.markdown("### 🎧 Listening...")
         st.components.v1.html(st.session_state['audio_html'], height=130)
 
-    # 数字表示：custom-card クラスを使用してモード対応
+    # 数字表示
     with st.expander("📜 問題の数字を確認する"):
         if q_no in problems:
             html_nums = "".join([f"<div class='number-display'>{n:,}</div>" for n in problems[q_no]])
@@ -492,7 +506,7 @@ if problems:
 
     if st.session_state['correct_ans'] is not None:
         st.divider()
-        with st.form(key='ans_form'):
+        with st.form(key=f'ans_form_{q_no}'): 
             user_input = st.text_input("答えを入力:", key=f"in_{q_no}")
             if st.form_submit_button("答え合わせ", type="secondary", use_container_width=True):
                 try:
@@ -501,5 +515,6 @@ if problems:
                         st.success(f"正解です ✨ {val:,}")
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
+
 
 
