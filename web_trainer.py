@@ -22,7 +22,7 @@ VOICE_MAP = {
     
     # 北米
     "🇺🇸 米国 - 女性 (Mary)": "en-US-JennyNeural", 
-    "🇺🇸 米国 - 男性 (James)": "en-US-GuyNeural",
+    "🇺🇸 米国 - 男性 (Tom)": "en-US-GuyNeural",
     "🇨🇦 カナダ - 女性 (Jennifer)": "en-CA-ClaraNeural",
     "🇨🇦 カナダ - 男性 (Robert)": "en-CA-LiamNeural",
     
@@ -501,4 +501,5 @@ if problems:
                         st.success(f"正解です ✨ {val:,}")
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
+
 
