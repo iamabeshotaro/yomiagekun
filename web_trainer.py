@@ -241,24 +241,26 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
-# 【変更点1】引き算の生成ロジック修正（確実に引くために上限を現在の合計に合わせる）
+# 引き算の割合：中間行の半分以上
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
     nums = []
     current_total = 0
     
-    # マイナスにするインデックスを事前に決定する
+    # マイナスにするインデックスを決定
     minus_indices = set()
     if allow_subtraction and rows > 2:
         # 最初(0)と最後(rows-1)を除くインデックス候補
         candidates = list(range(1, rows - 1))
-        # 口数の半分を目指す（例: 5口→2個）
-        count = rows // 2
-        # 候補数が足りない場合は全候補を使用
-        if count > len(candidates):
-            count = len(candidates)
         
-        minus_indices = set(random.sample(candidates, count))
+        if candidates:
+            # 「半分以上」なので、候補数の半分(切り上げ)を下限とする
+            min_subtract_count = (len(candidates) + 1) // 2
+            
+            # 下限〜上限(全数) の間でランダムに個数を決める
+            count = random.randint(min_subtract_count, len(candidates))
+            
+            minus_indices = set(random.sample(candidates, count))
     
     for r, d in enumerate(digits_list):
         # 桁数に基づく最小値と最大値
@@ -268,15 +270,14 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
         if r in minus_indices:
             # 引き算の場合：
             # 合計がマイナスにならないように、生成する乱数の上限を「現在の合計」でキャップする
-            # ただし、キャップした結果がその桁数の最小値(min_val)より小さい場合は引けないので足し算にする
             limit = min(max_val, current_total)
             
             if min_val <= limit:
                 val = random.randint(min_val, limit)
                 val = -val # 負の数にする
             else:
-                # 桁数制約により引くことができない（現在の合計が小さすぎる）場合
-                # やむを得ず足し算にする
+                # 桁数制約により引くことができない（現在の合計が小さすぎる）場合は、
+                # やむを得ず足し算にする（合計を増やして次の引き算に備える）
                 val = random.randint(min_val, max_val)
         else:
             # 足し算の場合
@@ -287,13 +288,13 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
         
     return nums
 
-# 【変更点2】読み上げテキスト生成
+# 読み上げテキスト生成
 def generate_audio_text(row_data):
     speech_parts = []
     n = len(row_data)
     
     for i, num in enumerate(row_data):
-        # 内部のandを削除 -> "one hundred twenty"
+        # 内部のandを削除
         text_val = num2words(abs(num), lang='en').replace(",", "").replace(" and ", " ")
         
         # リズム調整
@@ -304,13 +305,13 @@ def generate_audio_text(row_data):
             speech_parts.append(f"Starting with, {text_val}{delimiter}")
         
         elif i == n - 1:
-            # 【最後の数字】直前に "and" を入れて終了を合図する
+            # 【最後の数字】直前に "and" を入れる
             speech_parts.append(f"and, {text_val}{delimiter}")
             
         else:
             # 【中間の数字】
             if num < 0:
-                # 引き算は Minus (カンマなし)
+                # 引き算は Minus (間を詰めるためカンマなし)
                 speech_parts.append(f"Minus {text_val}{delimiter}")
             else:
                 # 足し算は宣言しない
@@ -451,7 +452,10 @@ if problems:
     if q_no in problems:
         d_info = [len(str(abs(n))) for n in problems[q_no]]
         p_type = any(n < 0 for n in problems[q_no])
-        st.markdown(f'<div style="display: flex; gap: 5px; margin-top: 8px;"><div style="flex: 1; background-color: #e8f5e9; color: #2e7d32; padding: 4px; border-radius: 4px; font-weight: bold; font-size: 0.85em; text-align: center; border: 1px solid #c8e6c9;">📊 {min(d_info)}〜{max(d_info)}桁</div><div style="flex: 1; background-color: {"#fff3e0" if p_type else "#e3f2fd"}; color: {"#ef6c00" if p_type else "#1565c0"}; padding: 4px; border-radius: 4px; font-weight: bold; font-size: 0.85em; text-align: center; border: 1px solid {"#ffe0b2" if p_type else "#bbdefb"};">⚙️ {"加減算" if p_type else "加算"}</div></div>', unsafe_allow_html=True)
+        
+        # 【変更点】HTML/CSSでの装飾をやめ、標準のst.infoを使用して互換性を高める
+        type_str = "加減算" if p_type else "加算のみ"
+        st.info(f"📊 {min(d_info)}〜{max(d_info)}桁  |  ⚙️ {type_str}")
 
     if st.session_state['current_q'] != q_no:
         st.session_state.update({'correct_ans': None, 'audio_html': None, 'current_q': q_no, 'last_voice_id': None})
