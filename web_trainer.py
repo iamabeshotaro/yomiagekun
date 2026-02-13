@@ -241,7 +241,9 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
-# 引き算の割合：中間行の半分以上
+# 【変更点1】マイナス位置決定ロジックの修正
+# ・中間行の半分以上がマイナスになるようにする
+# ・マイナスは2回までしか連続しない
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
     nums = []
@@ -250,34 +252,53 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     # マイナスにするインデックスを決定
     minus_indices = set()
     if allow_subtraction and rows > 2:
-        # 最初(0)と最後(rows-1)を除くインデックス候補
-        candidates = list(range(1, rows - 1))
+        middle_rows_count = rows - 2
+        # 「半分以上」なので切り上げ計算 (例:3口なら2口)
+        min_minus_count = (middle_rows_count + 1) // 2
         
-        if candidates:
-            # 「半分以上」なので、候補数の半分(切り上げ)を下限とする
-            min_subtract_count = (len(candidates) + 1) // 2
+        # 条件を満たすパターンが見つかるまで試行（通常1回ですぐ見つかる）
+        for _ in range(100):
+            temp_indices = []
+            consecutive_minus = 0 # 連続回数カウンタ
             
-            # 下限〜上限(全数) の間でランダムに個数を決める
-            count = random.randint(min_subtract_count, len(candidates))
+            for i in range(middle_rows_count):
+                row_idx = i + 1 # 実際の位置は1行目から
+                
+                # マイナスにできる条件: 現在の連続が2回未満であること
+                can_be_minus = (consecutive_minus < 2)
+                
+                is_minus = False
+                if can_be_minus:
+                    # マイナス比率を高めるために高確率(70%)で採用
+                    if random.random() < 0.7:
+                        is_minus = True
+                
+                if is_minus:
+                    temp_indices.append(row_idx)
+                    consecutive_minus += 1
+                else:
+                    consecutive_minus = 0 # リセット
             
-            minus_indices = set(random.sample(candidates, count))
+            # 生成されたパターンが「半分以上」の条件を満たしていれば採用
+            if len(temp_indices) >= min_minus_count:
+                minus_indices = set(temp_indices)
+                break
     
+    # 数値を生成
     for r, d in enumerate(digits_list):
-        # 桁数に基づく最小値と最大値
         min_val = 10**(d-1)
         max_val = 10**d - 1
         
         if r in minus_indices:
             # 引き算の場合：
-            # 合計がマイナスにならないように、生成する乱数の上限を「現在の合計」でキャップする
+            # 合計がマイナスにならない範囲で値を生成
             limit = min(max_val, current_total)
             
             if min_val <= limit:
                 val = random.randint(min_val, limit)
                 val = -val # 負の数にする
             else:
-                # 桁数制約により引くことができない（現在の合計が小さすぎる）場合は、
-                # やむを得ず足し算にする（合計を増やして次の引き算に備える）
+                # 桁数制約で引けない場合はやむを得ず足し算
                 val = random.randint(min_val, max_val)
         else:
             # 足し算の場合
@@ -453,7 +474,7 @@ if problems:
         d_info = [len(str(abs(n))) for n in problems[q_no]]
         p_type = any(n < 0 for n in problems[q_no])
         
-        # 【変更点】HTML/CSSでの装飾をやめ、標準のst.infoを使用して互換性を高める
+        # HTML/CSSでの装飾をやめ、標準のst.infoを使用して互換性を高める
         type_str = "加減算" if p_type else "加算のみ"
         st.info(f"📊 {min(d_info)}〜{max(d_info)}桁  |  ⚙️ {type_str}")
 
