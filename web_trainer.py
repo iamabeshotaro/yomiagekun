@@ -15,20 +15,39 @@ DATA_DIR = "data"
 BG_IMAGE = "background.png"
 LOADING_IMAGE = "loading.gif"
 
-# --- ボイス設定 ---
+# --- ボイス設定（多国籍版） ---
 VOICE_MAP = {
+    # 北米
     "🇺🇸 米国 - 女性 (Mary)": "en-US-JennyNeural", 
     "🇺🇸 米国 - 男性 (James)": "en-US-GuyNeural",
-    "🇬🇧 英国 - 女性 (Margaret)": "en-GB-LibbyNeural",
-    "🇬🇧 英国 - 男性 (David)": "en-GB-RyanNeural",
-    "🇦🇺 豪州 - 女性 (Charlotte)": "en-AU-NatashaNeural",
-    "🇦🇺 豪州 - 男性 (John)": "en-AU-WilliamNeural",
     "🇨🇦 カナダ - 女性 (Jennifer)": "en-CA-ClaraNeural",
     "🇨🇦 カナダ - 男性 (Robert)": "en-CA-LiamNeural",
-    "🇮🇳 インド - 女性 (Priya)": "en-IN-NeerjaNeural",
-    "🇮🇳 インド - 男性 (Rahul)": "en-IN-PrabhatNeural",
+    
+    # 欧州
+    "🇬🇧 英国 - 女性 (Margaret)": "en-GB-LibbyNeural",
+    "🇬🇧 英国 - 男性 (David)": "en-GB-RyanNeural",
     "🇮🇪 アイルランド - 女性 (Mary)": "en-IE-EmilyNeural",
     "🇮🇪 アイルランド - 男性 (Patrick)": "en-IE-ConnorNeural",
+    
+    # オセアニア
+    "🇦🇺 豪州 - 女性 (Charlotte)": "en-AU-NatashaNeural",
+    "🇦🇺 豪州 - 男性 (John)": "en-AU-WilliamNeural",
+    "🇳🇿 ニュージーランド - 女性 (Molly)": "en-NZ-MollyNeural",
+    "🇳🇿 ニュージーランド - 男性 (Mitchell)": "en-NZ-MitchellNeural",
+    
+    # アジア
+    "🇮🇳 インド - 女性 (Priya)": "en-IN-NeerjaNeural",
+    "🇮🇳 インド - 男性 (Rahul)": "en-IN-PrabhatNeural",
+    "🇸🇬 シンガポール - 女性 (Luna)": "en-SG-LunaNeural",
+    "🇸🇬 シンガポール - 男性 (Wayne)": "en-SG-WayneNeural",
+    "🇵🇭 フィリピン - 女性 (Rosa)": "en-PH-RosaNeural",
+    "🇵🇭 フィリピン - 男性 (James)": "en-PH-JamesNeural",
+    
+    # アフリカ
+    "🇿🇦 南アフリカ - 女性 (Leah)": "en-ZA-LeahNeural",
+    "🇿🇦 南アフリカ - 男性 (Luke)": "en-ZA-LukeNeural",
+    "🇳🇬 ナイジェリア - 女性 (Ezinne)": "en-NG-EzinneNeural",
+    "🇳🇬 ナイジェリア - 男性 (Abeo)": "en-NG-AbeoNeural",
 }
 
 def set_bg_image(image_file):
@@ -387,7 +406,6 @@ with st.expander("📖 使いかた", expanded=False):
 file_counts = get_problem_counts()
 with st.sidebar:
     st.header("⚙️ 設定 (Settings)")
-    # 【変更点】ランダム生成をリストの先頭にして、デフォルト選択にする
     mode = st.radio("📁 モード選択", ["ランダム生成", "CSV読み込み"], on_change=reset_audio_state)
     st.divider()
     
