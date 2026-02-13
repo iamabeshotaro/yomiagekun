@@ -15,8 +15,11 @@ DATA_DIR = "data"
 BG_IMAGE = "background.png"
 LOADING_IMAGE = "loading.gif"
 
-# --- ボイス設定（多国籍版） ---
+# --- ボイス設定（多国籍版 + ランダム） ---
+# 辞書の先頭にランダムを追加することで、デフォルトがランダムになります
 VOICE_MAP = {
+    "🎲 ランダム (Random)": "random",  # これを標準にする
+    
     # 北米
     "🇺🇸 米国 - 女性 (Mary)": "en-US-JennyNeural", 
     "🇺🇸 米国 - 男性 (James)": "en-US-GuyNeural",
@@ -340,11 +343,18 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
     else:
         loading_placeholder.markdown("<span style='color:#718096; font-size:0.9em;'>Generating audio...</span>", unsafe_allow_html=True)
 
+    # ランダム選択ロジック
+    actual_voice_id = voice_id
+    if voice_id == "random":
+        # ランダム以外の全てのボイスIDを取得して抽選
+        available_voices = [v for k, v in VOICE_MAP.items() if v != "random"]
+        actual_voice_id = random.choice(available_voices)
+
     full_text = generate_audio_text(problems[q_no])
     temp_file = f"temp_audio_{int(time.time())}.mp3"
     
     try:
-        asyncio.run(generate_edge_audio(full_text, voice_id, temp_file))
+        asyncio.run(generate_edge_audio(full_text, actual_voice_id, temp_file))
         loading_placeholder.empty()
 
         with open(temp_file, "rb") as f: audio_b64 = base64.b64encode(f.read()).decode()
@@ -424,6 +434,7 @@ with st.sidebar:
         allow_sub = st.checkbox("引き算を含める", value=False)
         problems = st.session_state['generated_problems']
     st.divider()
+    # 選択肢は VOICE_MAP のキー順に表示されるので、先頭の「ランダム」がデフォルトになります
     selected_voice_label = st.selectbox("話者の声を選択", options=list(VOICE_MAP.keys()))
     selected_voice_id = VOICE_MAP[selected_voice_label]
 
@@ -449,6 +460,8 @@ if problems:
     if st.session_state['current_q'] != q_no:
         st.session_state.update({'correct_ans': None, 'audio_html': None, 'current_q': q_no, 'last_voice_id': None})
     
+    # 選択ボイスが変わった場合の再生成
+    # ※ランダム(random)選択中はずっと "random" なので、ボタンを押さない限り再生成されません（意図通りの挙動）
     if st.session_state['audio_html'] and st.session_state['last_voice_id'] != selected_voice_id:
         create_and_play_audio(q_no, problems, selected_voice_id, base_speed); st.rerun()
 
@@ -488,3 +501,4 @@ if problems:
                         st.success(f"正解です ✨ {val:,}")
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
+
