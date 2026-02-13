@@ -241,49 +241,49 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
-# 【変更点1】生成ルールの厳密化
+# 【変更点1】引き算の割合調整（確率ではなく、中間口数の半分を狙う）
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
     nums = []
     current_total = 0
     
+    # マイナスにするインデックスを事前に決定する
+    minus_indices = set()
+    if allow_subtraction and rows > 2:
+        # 最初(0)と最後(rows-1)を除くインデックス候補
+        candidates = list(range(1, rows - 1))
+        # 口数の半分を目指す（例: 5口→2個, 10口→5個）
+        count = rows // 2
+        # 候補数が足りない場合は全候補を使用
+        if count > len(candidates):
+            count = len(candidates)
+        
+        minus_indices = set(random.sample(candidates, count))
+    
     for r, d in enumerate(digits_list):
         val = random.randint(10**(d-1), 10**d - 1)
         
-        # 制約チェック
-        is_first = (r == 0)
-        is_last = (r == len(digits_list) - 1)
-        
-        if is_first:
-            # 最初は必ずプラス
-            pass
-        elif is_last:
-            # 最後は必ずプラス
-            pass
-        elif allow_subtraction:
-            # 確率は50%
-            if random.random() < 0.5:
-                # 答えがマイナスにならない場合のみ引き算にする
-                if current_total - val >= 0:
-                    val = -val
-                else:
-                    # 引くとマイナスになる場合はプラスのまま
-                    pass
+        # 決定されたインデックスであればマイナスを試みる
+        if r in minus_indices:
+            # 答えがマイナスにならない場合のみ引き算にする
+            if current_total - val >= 0:
+                val = -val
+            # 引くとマイナスになる場合はプラスのまま（制約優先）
         
         nums.append(val)
         current_total += val
         
     return nums
 
-# 【変更点2】読み上げテキスト生成（Addを廃止し、最後にandを入れる）
+# 【変更点2】and削除（内部andも削除し、最後のandだけ残す）
 def generate_audio_text(row_data):
     speech_parts = []
     n = len(row_data)
     
     for i, num in enumerate(row_data):
-        # num2wordsはデフォルトで数字の中にandを入れることがある（例: one hundred and twenty）
-        # ユーザー指示は「5口の数字の直前にandを入れる」という構造上のand
-        text_val = num2words(abs(num), lang='en').replace(",", "")
+        # num2wordsは "one hundred and twenty" のようにandを入れる
+        # .replace(" and ", " ") で内部のandを削除 -> "one hundred twenty"
+        text_val = num2words(abs(num), lang='en').replace(",", "").replace(" and ", " ")
         
         # リズム調整
         delimiter = "." if (i + 1) % 3 == 0 else ","
