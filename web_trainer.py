@@ -43,7 +43,7 @@ VOICE_MAP = {
     "🇳🇬 ナイジェリア - 男性 (Abeo)": "en-NG-AbeoNeural",
 }
 
-# --- 背景画像処理 ---
+# 【軽量化1】背景画像の処理をキャッシュ化
 @st.cache_data
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
@@ -117,6 +117,16 @@ def set_bg_image(image_file):
         background-color: rgba(255, 255, 255, 0.95);
         border-right: 1px solid #E2E8F0;
     }}
+    [data-testid="stExpander"] {{
+        background-color: white;
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+        color: #2D3748;
+    }}
+    .streamlit-expanderHeader {{
+        background-color: transparent !important;
+        color: #2D3748 !important;
+    }}
     .custom-card {{
         background-color: #FFFFFF;
         padding: 20px;
@@ -137,13 +147,30 @@ def set_bg_image(image_file):
         background-color: #FFFFFF !important;
         color: #2D3748 !important;
     }}
+    @media (max-width: 640px) {{
+        h1 {{ font-size: 2.0rem !important; }}
+        .block-container {{ padding: 1.5rem !important; margin-top: 0.5rem; }}
+    }}
     @media (prefers-color-scheme: dark) {{
         .block-container {{
             background-color: rgba(30, 30, 30, 0.75) !important;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }}
-        h1 {{ color: #F7FAFC !important; }}
         h1, h2, h3, h4, h5, p, div, span, label, li, .stMarkdown, .stNumberInput, .stTextInput {{
+            color: #E2E8F0 !important;
+        }}
+        h1 {{
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.1);
+            color: #F7FAFC !important;
+        }}
+        h5 {{ color: #A0AEC0 !important; }}
+        [data-testid="stSidebar"] {{
+            background-color: rgba(26, 32, 44, 0.95) !important;
+            border-right: 1px solid #2D3748;
+        }}
+        input {{
+            background-color: #1A202C !important;
             color: #E2E8F0 !important;
         }}
         .custom-card, [data-testid="stExpander"] {{
@@ -151,10 +178,11 @@ def set_bg_image(image_file):
             color: #E2E8F0 !important;
             border: 1px solid #4A5568 !important;
         }}
-        input {{
-            background-color: #1A202C !important;
+        .number-display {{
             color: #E2E8F0 !important;
+            border-bottom: 1px solid #4A5568 !important;
         }}
+        .streamlit-expanderHeader {{ color: #E2E8F0 !important; }}
     }}
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
@@ -209,60 +237,83 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
+# 引き算の生成ロジック
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
     nums = []
     current_total = 0
+    
     minus_indices = set()
     if allow_subtraction and rows > 2:
         middle_rows_count = rows - 2
         min_minus_count = (middle_rows_count + 1) // 2
+        
         for _ in range(100):
             temp_indices = []
             consecutive_minus = 0 
+            
             for i in range(middle_rows_count):
                 row_idx = i + 1 
+                
                 can_be_minus = (consecutive_minus < 2)
+                
                 is_minus = False
-                if can_be_minus and random.random() < 0.7:
-                    is_minus = True
+                if can_be_minus:
+                    if random.random() < 0.7:
+                        is_minus = True
+                
                 if is_minus:
                     temp_indices.append(row_idx)
                     consecutive_minus += 1
                 else:
                     consecutive_minus = 0 
+            
             if len(temp_indices) >= min_minus_count:
                 minus_indices = set(temp_indices)
                 break
+    
     for r, d in enumerate(digits_list):
         min_val = 10**(d-1)
         max_val = 10**d - 1
+        
         if r in minus_indices:
             limit = min(max_val, current_total)
             if min_val <= limit:
-                val = -random.randint(min_val, limit)
+                val = random.randint(min_val, limit)
+                val = -val 
             else:
                 val = random.randint(min_val, max_val)
         else:
             val = random.randint(min_val, max_val)
+        
         nums.append(val)
         current_total += val
+        
     return nums
 
+# 読み上げテキスト生成
 def generate_audio_text(row_data):
     speech_parts = []
     n = len(row_data)
+    
     for i, num in enumerate(row_data):
         text_val = num2words(abs(num), lang='en').replace(",", "").replace(" and ", " ")
         delimiter = "." if (i + 1) % 3 == 0 else ","
-        if i == 0: speech_parts.append(f"Starting with, {text_val}{delimiter}")
-        elif i == n - 1: speech_parts.append(f"and, {text_val}{delimiter}")
+
+        if i == 0:
+            speech_parts.append(f"Starting with, {text_val}{delimiter}")
+        elif i == n - 1:
+            speech_parts.append(f"and, {text_val}{delimiter}")
         else:
-            if num < 0: speech_parts.append(f"Minus {text_val}{delimiter}")
-            else: speech_parts.append(f"{text_val}{delimiter}")
+            if num < 0:
+                speech_parts.append(f"Minus {text_val}{delimiter}")
+            else:
+                speech_parts.append(f"{text_val}{delimiter}")
+    
     speech_parts.append("That's all.")
     return " ".join(speech_parts)
 
+# メモリ上で音声データを生成
 async def get_audio_bytes(text, voice):
     communicate = edge_tts.Communicate(text, voice)
     audio_stream = b""
@@ -271,13 +322,11 @@ async def get_audio_bytes(text, voice):
             audio_stream += chunk["data"]
     return audio_stream
 
-# --- 音声再生・カウントダウン・スマホ対応 ---
+# 音声生成と再生（カウントダウン機能付き）
 def create_and_play_audio(q_no, problems, voice_id, base_speed):
     if q_no not in problems: return
     
-    # プレースホルダー（読み込み中 or カウントダウン用）
     loading_placeholder = st.empty()
-    
     if os.path.exists(LOADING_IMAGE):
         loading_placeholder.image(LOADING_IMAGE, width=50)
     else:
@@ -291,11 +340,11 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
     full_text = generate_audio_text(problems[q_no])
     
     try:
-        # 音声生成 (非同期)
+        # 音声生成
         audio_bytes = asyncio.run(get_audio_bytes(full_text, actual_voice_id))
         loading_placeholder.empty()
 
-        # --- 3秒カウントダウン ---
+        # --- カウントダウン処理 (3秒) ---
         countdown_style = """
         <div style='
             text-align: center; 
@@ -311,15 +360,15 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
             loading_placeholder.markdown(f"{countdown_style}{i}</div>", unsafe_allow_html=True)
             time.sleep(1)
         loading_placeholder.empty()
-        # ------------------------
+        # ----------------------------
 
         audio_b64 = base64.b64encode(audio_bytes).decode()
+        
         player_id = f"ap_{int(time.time())}"
         
-        # HTML + JS (スマホ対応強化版)
         audio_html = f"""
             <div class="custom-card">
-                <audio id="{player_id}" controls autoplay playsinline style="width: 100%; margin-bottom: 10px;">
+                <audio id="{player_id}" controls autoplay style="width: 100%; margin-bottom: 10px;">
                     <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
                 </audio>
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -335,45 +384,24 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
                     >
                     <span id="rate_disp_{player_id}" style="font-weight: bold; width: 45px; text-align: right;">{base_speed:.1f}x</span>
                 </div>
-                <div id="status_{player_id}" style="color: red; font-size: 0.8em; display: none; margin-top:5px;">
-                    ⚠️ 自動再生がブロックされました。再生ボタンを押してください。
-                </div>
             </div>
             <script>
-                (function() {{
-                    var audio = document.getElementById("{player_id}");
-                    if (!audio) return;
-                    audio.playbackRate = {base_speed};
-                    
-                    // 強制再生トライ
-                    var playPromise = audio.play();
-                    if (playPromise !== undefined) {{
-                        playPromise.then(_ => {{
-                            console.log("Autoplay started.");
-                        }})
-                        .catch(error => {{
-                            console.log("Autoplay prevented:", error);
-                            document.getElementById("status_{player_id}").style.display = "block";
-                        }});
-                    }}
-                }})();
+                var audio = document.getElementById("{player_id}");
+                if(audio) {{ audio.playbackRate = {base_speed}; }}
             </script>
         """
-        st.session_state.update({
-            'correct_ans': sum(problems[q_no]), 
-            'audio_html': audio_html, 
-            'current_q': q_no, 
-            'last_voice_id': voice_id
-        })
-
+        st.session_state.update({'correct_ans': sum(problems[q_no]), 'audio_html': audio_html, 'current_q': q_no, 'last_voice_id': voice_id})
     except Exception as e: 
         loading_placeholder.error("エラーが発生しました")
         st.error(f"Error: {e}")
 
 def reset_audio_state():
     st.session_state.update({
-        'audio_html': None, 'correct_ans': None, 'current_q': None, 
-        'last_voice_id': None, 'generated_problems': {} 
+        'audio_html': None, 
+        'correct_ans': None, 
+        'current_q': None, 
+        'last_voice_id': None,
+        'generated_problems': {} 
     })
 
 # --- メイン UI ---
@@ -382,17 +410,15 @@ set_bg_image(BG_IMAGE)
 st.title(APP_NAME_EN)
 st.markdown(f"##### {APP_NAME_JP}")
 
-# セッション初期化
 for key in ['correct_ans', 'current_q', 'audio_html', 'last_voice_id', 'generated_problems', 'digit_deck']:
-    if key not in st.session_state: 
-        st.session_state[key] = None if key not in ['generated_problems', 'digit_deck'] else ([] if 'deck' in key else {})
+    if key not in st.session_state: st.session_state[key] = None if 'ans' in key or 'html' in key or 'voice' in key or 'q' in key else [] if 'deck' in key else {}
 
 with st.expander("📖 使いかた", expanded=False):
     st.markdown("""
-    1. **設定**: 左側でモード・声・スピードを設定します。
-    2. **再生**: **『再生する』**ボタンを押します。
-    3. **待機**: 読み込み後に **3・2・1** のカウントダウンがあり、自動再生されます。
-    4. **回答**: 答えを入力して**『答え合わせ』**を押してください。
+    1. **設定**: 左側で**『モード』**と**『声』**を選びます。
+    2. **スピード**: 左側の**『基本スピード』**で好みの速さを決めておくと、ずっとその速さで再生されます。
+    3. **再生**: **『再生する』**ボタンを押すと、読み込み → **3秒カウントダウン** → 音声再生となります。
+    4. **答え合わせ**: 答えを入力して**『答え合わせ』**を押してください。
     """)
 
 file_counts = get_problem_counts()
@@ -402,7 +428,7 @@ with st.sidebar:
     st.divider()
     
     st.subheader("🕰️ 基本スピード")
-    speed_level = st.slider("Level (0.6x - 2.5x)", 1, 20, 10, help="次の問題から適用されます")
+    speed_level = st.slider("Level (0.6x - 2.5x)", 1, 20, 10, help="ここでの設定は次の問題にも引き継がれます")
     base_speed = 0.5 + (speed_level * 0.1)
     st.caption(f"現在の設定: **{base_speed:.1f}倍速**")
     st.divider()
@@ -442,20 +468,18 @@ if problems:
     if q_no in problems:
         d_info = [len(str(abs(n))) for n in problems[q_no]]
         p_type = any(n < 0 for n in problems[q_no])
+        
         type_str = "加減算" if p_type else "加算のみ"
         st.info(f"📊 {min(d_info)}〜{max(d_info)}桁  |  ⚙️ {type_str}")
 
-    # 問題番号が変わったらリセット
     if st.session_state['current_q'] != q_no:
         st.session_state.update({'correct_ans': None, 'audio_html': None, 'current_q': q_no, 'last_voice_id': None})
     
-    # 声が変わったら再生成
     if st.session_state['audio_html'] and st.session_state['last_voice_id'] != selected_voice_id:
         create_and_play_audio(q_no, problems, selected_voice_id, base_speed); st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # ボタン表示
     if is_random_mode and q_no == max_no:
         if st.button("🆕 次の問題を出す", type="primary", use_container_width=True):
             new_q = max_no + 1
@@ -465,12 +489,10 @@ if problems:
         if st.button("▶️ 再生する (Play)", type="primary", use_container_width=True):
             create_and_play_audio(q_no, problems, selected_voice_id, base_speed); st.rerun()
 
-    # オーディオプレイヤー表示
     if st.session_state['audio_html']:
         st.markdown("### 🎧 Listening...")
-        st.components.v1.html(st.session_state['audio_html'], height=150) # 高さを少し調整
+        st.components.v1.html(st.session_state['audio_html'], height=130)
 
-    # 答え確認用カード
     with st.expander("📜 問題の数字を確認する"):
         if q_no in problems:
             html_nums = "".join([f"<div class='number-display'>{n:,}</div>" for n in problems[q_no]])
@@ -481,7 +503,6 @@ if problems:
             </div>
             """, unsafe_allow_html=True)
 
-    # 解答フォーム
     if st.session_state['correct_ans'] is not None:
         st.divider()
         with st.form(key=f'ans_form_{q_no}'): 
