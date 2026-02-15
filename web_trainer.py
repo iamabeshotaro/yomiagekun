@@ -6,7 +6,7 @@ import time
 import asyncio
 import edge_tts
 import random
-import io  # 追加: メモリ上でデータを扱うため
+import io
 from num2words import num2words
 
 # --- 設定 ---
@@ -43,7 +43,7 @@ VOICE_MAP = {
     "🇳🇬 ナイジェリア - 男性 (Abeo)": "en-NG-AbeoNeural",
 }
 
-# 【軽量化1】背景画像の処理をキャッシュ化（再実行時に計算しない）
+# 【軽量化1】背景画像の処理をキャッシュ化
 @st.cache_data
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
@@ -52,7 +52,6 @@ def get_base64_of_bin_file(bin_file):
 
 def set_bg_image(image_file):
     if not os.path.exists(image_file): return
-    # キャッシュされた関数を呼び出す
     b64_encoded = get_base64_of_bin_file(image_file)
     style = f"""
     <style>
@@ -238,13 +237,12 @@ def get_next_digits_from_deck(rows, min_digit, max_digit):
         current_digits[target_idx] = max_digit
     return current_digits
 
-# 引き算の生成ロジック（中間行の半分以上、連続2回まで）
+# 引き算の生成ロジック
 def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
     digits_list = get_next_digits_from_deck(rows, min_digit, max_digit)
     nums = []
     current_total = 0
     
-    # マイナスにするインデックスを決定
     minus_indices = set()
     if allow_subtraction and rows > 2:
         middle_rows_count = rows - 2
@@ -274,13 +272,11 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
                 minus_indices = set(temp_indices)
                 break
     
-    # 数値を生成
     for r, d in enumerate(digits_list):
         min_val = 10**(d-1)
         max_val = 10**d - 1
         
         if r in minus_indices:
-            # 引き算
             limit = min(max_val, current_total)
             if min_val <= limit:
                 val = random.randint(min_val, limit)
@@ -288,7 +284,6 @@ def generate_single_problem(min_digit, max_digit, rows, allow_subtraction):
             else:
                 val = random.randint(min_val, max_val)
         else:
-            # 足し算
             val = random.randint(min_val, max_val)
         
         nums.append(val)
@@ -318,7 +313,7 @@ def generate_audio_text(row_data):
     speech_parts.append("That's all.")
     return " ".join(speech_parts)
 
-# 【軽量化2】ファイル保存を介さずメモリ上で音声データを生成
+# メモリ上で音声データを生成
 async def get_audio_bytes(text, voice):
     communicate = edge_tts.Communicate(text, voice)
     audio_stream = b""
@@ -327,6 +322,7 @@ async def get_audio_bytes(text, voice):
             audio_stream += chunk["data"]
     return audio_stream
 
+# 音声生成と再生（カウントダウン機能付き）
 def create_and_play_audio(q_no, problems, voice_id, base_speed):
     if q_no not in problems: return
     
@@ -344,11 +340,28 @@ def create_and_play_audio(q_no, problems, voice_id, base_speed):
     full_text = generate_audio_text(problems[q_no])
     
     try:
-        # メモリ上で音声データを取得
+        # 音声生成
         audio_bytes = asyncio.run(get_audio_bytes(full_text, actual_voice_id))
         loading_placeholder.empty()
 
-        # 直接Base64エンコード（ファイルI/Oなし）
+        # --- カウントダウン処理 (3秒) ---
+        countdown_style = """
+        <div style='
+            text-align: center; 
+            font-size: 4em; 
+            font-weight: bold; 
+            color: #FF6B6B; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+            animation: fadeIn 0.5s;
+        '>
+        """
+        for i in range(3, 0, -1):
+            loading_placeholder.markdown(f"{countdown_style}{i}</div>", unsafe_allow_html=True)
+            time.sleep(1)
+        loading_placeholder.empty()
+        # ----------------------------
+
         audio_b64 = base64.b64encode(audio_bytes).decode()
         
         player_id = f"ap_{int(time.time())}"
@@ -404,7 +417,7 @@ with st.expander("📖 使いかた", expanded=False):
     st.markdown("""
     1. **設定**: 左側で**『モード』**と**『声』**を選びます。
     2. **スピード**: 左側の**『基本スピード』**で好みの速さを決めておくと、ずっとその速さで再生されます。
-    3. **再生**: **『再生する』**ボタンを押すと、読み込みの後に音声が流れます。
+    3. **再生**: **『再生する』**ボタンを押すと、読み込み → **3秒カウントダウン** → 音声再生となります。
     4. **答え合わせ**: 答えを入力して**『答え合わせ』**を押してください。
     """)
 
@@ -501,3 +514,7 @@ if problems:
                         st.success(f"正解です ✨ {val:,}")
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
+                        st.success(f"正解です ✨ {val:,}")
+                    else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
+                except: st.warning("数字を入力してください。")
+
