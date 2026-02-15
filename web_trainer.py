@@ -514,7 +514,3 @@ if problems:
                         st.success(f"正解です ✨ {val:,}")
                     else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
                 except: st.warning("数字を入力してください。")
-                        st.success(f"正解です ✨ {val:,}")
-                    else: st.error(f"残念... 正解は {st.session_state['correct_ans']:,} でした。")
-                except: st.warning("数字を入力してください。")
-
